@@ -1,19 +1,37 @@
+import { useEffect } from "react";
+import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
+import SignUpPage from "./components/SignUpPage";
+import LogInPage from "./components/LogInPage";
 import "./App.css";
 
 function Navbar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleFeaturesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (location.pathname === "/") {
+      document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/#features");
+    }
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-inner">
-        <div className="logo">
+        <Link to="/" className="logo logo-btn" aria-label="Go to homepage">
           <span className="logo-mark">★</span>
           <span className="logo-text">FSRS Flashcard App</span>
-        </div>
+        </Link>
         <ul className="nav-links">
-          <li><a href="#features">Features</a></li>
+          <li><a href="#features" onClick={handleFeaturesClick}>Features</a></li>
         </ul>
         <div className="navbar-actions">
-          <a href="#" className="btn btn-outline btn-sm">Log In</a>
-          <a href="#" className="btn btn-primary btn-sm">Get Started</a>
+          <Link to="/login" className="btn btn-outline btn-sm">Log In</Link>
+          <Link to="/signup" className="btn btn-primary btn-sm">
+            Get Started
+          </Link>
         </div>
       </div>
     </nav>
@@ -35,7 +53,9 @@ function Hero() {
           them — maximizing retention with minimal effort.
         </p>
         <div className="hero-actions">
-          <a href="#" className="btn btn-primary">Start for Free</a>
+          <Link to="/signup" className="btn btn-primary">
+            Start for Free
+          </Link>
           <a href="#how-it-works" className="btn btn-ghost">See how it works →</a>
         </div>
       </div>
@@ -124,13 +144,37 @@ function Footer() {
   );
 }
 
+function LandingPage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        // Small delay to ensure the DOM is rendered
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 0);
+      }
+    }
+  }, [location.hash]);
+
+  return (
+    <>
+      <Hero />
+      <Features />
+      <Footer />
+    </>
+  );
+}
+
 function App() {
   return (
     <div className="app">
       <Navbar />
-      <Hero />
-      <Features />
-      <Footer />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/login" element={<LogInPage />} />
+      </Routes>
     </div>
   );
 }
