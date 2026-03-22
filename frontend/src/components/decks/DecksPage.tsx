@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDecks, ApiError } from "../../api";
+import { getDecks, toggleDeckVisibility, ApiError } from "../../api";
 import { useAuth } from "../context/useAuth";
 import type { Deck } from "../../api";
+import CreateDeckModal from "./CreateDeckModal";
+import ShareDeckModal from "./ShareDeckModal";
 import "./DecksPage.css";
 
 export default function DecksPage() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [shareDeckTarget, setShareDeckTarget] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
   const auth = useAuth();
 
@@ -76,12 +80,22 @@ export default function DecksPage() {
     <div className="decks-page">
       <div className="decks-inner">
         <div className="decks-header">
-          <h1 className="decks-heading">My Decks</h1>
-          <p className="decks-sub">
-            {decks.length === 0
-              ? "You don't have any decks yet."
-              : `${decks.length} deck${decks.length !== 1 ? "s" : ""}`}
-          </p>
+          <div className="decks-header-row">
+            <div>
+              <h1 className="decks-heading">My Decks</h1>
+              <p className="decks-sub">
+                {decks.length === 0
+                  ? "You don't have any decks yet."
+                  : `${decks.length} deck${decks.length !== 1 ? "s" : ""}`}
+              </p>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => setModalOpen(true)}
+            >
+              + Create Deck
+            </button>
+          </div>
         </div>
 
         {decks.length === 0 ? (
@@ -91,6 +105,12 @@ export default function DecksPage() {
             <p className="decks-empty-sub">
               Create your first deck to start studying.
             </p>
+            <button
+              className="btn btn-primary decks-empty-cta"
+              onClick={() => setModalOpen(true)}
+            >
+              + Create Deck
+            </button>
           </div>
         ) : (
           <div className="decks-grid">
@@ -98,16 +118,62 @@ export default function DecksPage() {
               <div key={deck.id} className="deck-card">
                 <h3 className="deck-card-name">{deck.name}</h3>
                 <p className="deck-card-count">
-                  {deck.flashcards.length} card
-                  {deck.flashcards.length !== 1 ? "s" : ""}
+                  {(deck.flashcards ?? []).length} card
+                  {(deck.flashcards ?? []).length !== 1 ? "s" : ""}
                 </p>
                 <p className="deck-card-date">
                   Created {new Date(deck.createdAt).toLocaleDateString()}
                 </p>
+                <p className="deck-card-date">
+                  {deck.isPublic ? "Public Deck" : "Private Deck"}
+                </p>
+                <div className="deck-card-actions">
+                  <button
+                    className={`visibility-badge ${deck.isPublic ? "visibility-badge--public" : ""}`}
+                    onClick={async () => {
+                      try {
+                        const updated = await toggleDeckVisibility(deck.id, !deck.isPublic);
+                        setDecks((prev) =>
+                          prev.map((d) =>
+                            d.id === deck.id ? { ...d, isPublic: updated.isPublic } : d
+                          )
+                        );
+                      } catch {
+                        // TODO: Add error msg? 
+                        // silently fail — user can retry
+                      }
+                    }}
+                  >
+                    {deck.isPublic ? "Make Private" : "Make Public"}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShareDeckTarget({ id: deck.id, name: deck.name })}
+                  >
+                    Share
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        <CreateDeckModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onCreated={(newDeck) => {
+            setDecks((prev) => [...prev, newDeck]);
+            setModalOpen(false);
+          }}
+          existingDeckNames={decks.map((d) => d.name)}
+        />
+
+        <ShareDeckModal
+          isOpen={shareDeckTarget !== null}
+          onClose={() => setShareDeckTarget(null)}
+          deckId={shareDeckTarget?.id ?? 0}
+          deckName={shareDeckTarget?.name ?? ""}
+        />
       </div>
     </div>
   );

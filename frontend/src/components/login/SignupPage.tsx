@@ -19,7 +19,7 @@ export default function SignupPage() {
     setFormState((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setError(null);
 
@@ -32,7 +32,7 @@ export default function SignupPage() {
     try {
       await signup(formState.username, formState.password);
       auth.loginSuccess(formState.username);
-      navigate("/decks");
+      navigate("/my-decks");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

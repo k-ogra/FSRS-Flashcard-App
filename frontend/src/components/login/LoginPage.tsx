@@ -18,14 +18,14 @@ export default function LoginPage() {
     setFormState((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
       const res = await login(formState.username, formState.password);
       auth.loginSuccess(res.username!);
-      navigate("/decks");
+      navigate("/my-decks");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

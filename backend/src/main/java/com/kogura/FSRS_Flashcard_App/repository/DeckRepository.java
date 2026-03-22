@@ -9,4 +9,6 @@ import java.util.List;
 
 public interface DeckRepository extends JpaRepository<Deck, Long> {
   List<Deck> findByUser(User user);
+  boolean existsByNameAndUser(String name, User user);
+  List<Deck> findByIsPublicTrue();
 }

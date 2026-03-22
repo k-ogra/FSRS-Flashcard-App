@@ -10,6 +10,7 @@ export interface AuthResponse {
 export interface Deck {
   id: number;
   name: string;
+  isPublic: boolean;
   createdAt: string;
   flashcards: {
     id: number;
@@ -17,6 +18,16 @@ export interface Deck {
     answer: string;
     createdAt: string;
   }[];
+}
+
+export interface DeckSummary {
+  id: number;
+  name: string;
+  isPublic: boolean;
+  ownerUsername: string;
+  sharedByUsername: string | null;
+  createdAt: string;
+  flashcardCount: number;
 }
 
 export class ApiError extends Error {
@@ -112,4 +123,94 @@ export async function getDecks(): Promise<Deck[]> {
     throw new ApiError(data.message, res.status);
   }
   return res.json();
+}
+
+export async function createDeck(name: string): Promise<Deck> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to create deck" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getPublicDecks(): Promise<DeckSummary[]> {
+  const res = await fetch(`${API_ROOT}/decks/public`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to load public decks" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getSharedDecks(): Promise<DeckSummary[]> {
+  const res = await fetch(`${API_ROOT}/decks/shared`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to load shared decks" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function toggleDeckVisibility(deckId: number, isPublic: boolean): Promise<DeckSummary> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/visibility`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ isPublic }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to update visibility" }));
+    throw new ApiError(data.message, res.status);
+  }
+  console.log("TOGGLING")
+  return res.json();
+}
+
+export async function shareDeck(deckId: number, username: string): Promise<{ message: string }> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/share`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ username }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new ApiError(data.message, res.status);
+  return data;
+}
+
+export async function unshareDeck(deckId: number, userId: number): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/share/${userId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to unshare deck" }));
+    throw new ApiError(data.message, res.status);
+  }
 }

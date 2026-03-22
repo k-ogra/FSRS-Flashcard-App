@@ -42,9 +42,17 @@ function Navbar() {
             </a>
           </li>
           {auth.isAuthenticated && (
-            <li>
-              <Link to="/decks">My Decks</Link>
-            </li>
+            <>
+              <li>
+                <Link to="/my-decks">My Decks</Link>
+              </li>
+              <li>
+                <Link to="/shared-decks">Shared Decks</Link>
+              </li>
+              <li>
+                <Link to="/public-decks">Public Decks</Link>
+              </li>
+            </>
           )}
         </ul>
         <div className="navbar-actions">
