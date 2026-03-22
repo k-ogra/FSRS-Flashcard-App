@@ -17,7 +17,7 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v0/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -85,12 +85,13 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("CSRF token set", null));
     }
 
-    @PostMapping("/test")
-    public ResponseEntity<AuthResponse> test() {
+    
+    @GetMapping("/authenticated")
+    public ResponseEntity<AuthResponse> authenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).body(new AuthResponse("Not authenticated", null));
+            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
         }
         return ResponseEntity.ok(new AuthResponse("Authenticated", authentication.getName()));
     }

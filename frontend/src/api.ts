@@ -1,8 +1,22 @@
-const API_BASE = "http://localhost:8080/api/v1/auth";
+// TODO: Change to actual backend URL (env var?)
+const API_ROOT = "http://localhost:8080/api/v0";
+const API_BASE = `${API_ROOT}/auth`;
 
-interface AuthResponse {
+export interface AuthResponse {
   message: string;
   username: string | null;
+}
+
+export interface Deck {
+  id: number;
+  name: string;
+  createdAt: string;
+  flashcards: {
+    id: number;
+    question: string;
+    answer: string;
+    createdAt: string;
+  }[];
 }
 
 export class ApiError extends Error {
@@ -33,7 +47,7 @@ async function getCsrfToken(): Promise<string> {
 
 export async function signup(
   username: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_BASE}/signup`, {
@@ -52,7 +66,7 @@ export async function signup(
 
 export async function login(
   username: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_BASE}/login`, {
@@ -67,4 +81,35 @@ export async function login(
   const data: AuthResponse = await res.json();
   if (!res.ok) throw new ApiError(data.message, res.status);
   return data;
+}
+
+export async function logout(): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  await fetch(`${API_BASE}/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+}
+
+export async function getAuthenticated(): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/authenticated`, {
+    credentials: "include"
+  });
+  const data: AuthResponse = await res.json();
+  if (!res.ok) throw new ApiError(data.message, res.status);
+  return data;
+}
+
+export async function getDecks(): Promise<Deck[]> {
+  const res = await fetch(`${API_ROOT}/decks`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Unauthorized" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
 }

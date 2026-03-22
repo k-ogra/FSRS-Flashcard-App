@@ -1,0 +1,125 @@
+/* ============================================================
+   Decks Page — Matches App.css design tokens
+   ============================================================ */
+
+.decks-page {
+  min-height: calc(100vh - 60px);
+  padding: 64px 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45, 212, 191, 0.05) 0%, transparent 70%);
+}
+
+.decks-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.decks-header {
+  margin-bottom: 48px;
+}
+
+.decks-heading {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.decks-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ── Deck Grid ────────────────────────────────────────────── */
+.decks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.deck-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+.deck-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--amber-dim);
+  box-shadow: var(--shadow-amber);
+}
+.deck-card:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.deck-card-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.deck-card-count {
+  font-size: 14px;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.deck-card-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Empty State ──────────────────────────────────────────── */
+.decks-empty {
+  text-align: center;
+  padding: 80px 20px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.decks-empty-icon {
+  font-size: 32px;
+  color: var(--amber);
+  margin-bottom: 16px;
+}
+
+.decks-empty-heading {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.decks-empty-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ── Loading / Error ──────────────────────────────────────── */
+.decks-loading,
+.decks-error {
+  text-align: center;
+  padding: 96px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .decks-inner {
+    padding: 0 20px;
+  }
+  .decks-grid {
+    grid-template-columns: 1fr;
+  }
+}

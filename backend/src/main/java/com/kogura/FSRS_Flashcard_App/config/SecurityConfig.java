@@ -40,7 +40,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Allow these endpoints to be used without session cookies
-                        .requestMatchers("/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/csrf").permitAll()
+                        .requestMatchers("/api/v0/auth/signup", "/api/v0/auth/login", "/api/v0/auth/csrf").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
