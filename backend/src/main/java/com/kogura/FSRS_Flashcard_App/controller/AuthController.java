@@ -4,9 +4,13 @@ import com.kogura.FSRS_Flashcard_App.dto.AuthResponse;
 import com.kogura.FSRS_Flashcard_App.dto.LoginRequest;
 import com.kogura.FSRS_Flashcard_App.dto.SignupRequest;
 import com.kogura.FSRS_Flashcard_App.model.User;
+import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
+import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
 import com.kogura.FSRS_Flashcard_App.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,6 +26,9 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
+    private final DeckRepository deckRepository;
+    private final SharedDeckRepository sharedDeckRepository;
 
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request,
@@ -86,6 +93,39 @@ public class AuthController {
     }
 
     
+    @DeleteMapping("/account")
+    @Transactional
+    public ResponseEntity<AuthResponse> deleteAccount(HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
+        }
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Remove shared deck records where user is recipient or sharer
+        sharedDeckRepository.deleteByUser(user);
+        sharedDeckRepository.deleteBySharer(user);
+
+        // Remove all decks owned by the user (cascades to flashcards)
+        deckRepository.deleteAll(deckRepository.findByUser(user));
+
+        // Delete the user
+        userRepository.delete(user);
+
+        // Invalidate session
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.ok(new AuthResponse("Account deleted successfully", null));
+    }
+
     @GetMapping("/authenticated")
     public ResponseEntity<AuthResponse> authenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

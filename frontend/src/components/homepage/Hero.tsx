@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import "./Hero.css";
 
 function Hero() {
   const { isAuthenticated } = useAuth();

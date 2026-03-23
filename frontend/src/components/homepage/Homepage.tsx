@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Hero from "./Hero";
 import Features from "../header/Features";
 import Footer from "../footer/Footer";
+import "./Homepage.css";
 
 function Homepage() {
   const location = useLocation();

@@ -114,6 +114,21 @@ export async function getAuthenticated(): Promise<AuthResponse> {
   return data;
 }
 
+export async function deleteAccount(): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_BASE}/account`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to delete account" }));
+    throw new ApiError(data.message, res.status);
+  }
+}
+
 export async function getDecks(): Promise<Deck[]> {
   const res = await fetch(`${API_ROOT}/decks`, {
     credentials: "include",

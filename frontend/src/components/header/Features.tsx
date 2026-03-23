@@ -1,3 +1,5 @@
+import "./Features.css";
+
 interface FeatureCardProps {
   icon: string;
   title: string;

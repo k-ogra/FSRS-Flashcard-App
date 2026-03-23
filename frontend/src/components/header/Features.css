@@ -1,0 +1,58 @@
+/* ── Features ──────────────────────────────────────────────── */
+.features {
+  padding: 96px 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border-dim);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.feature-card {
+  background: var(--bg-raised);
+  padding: 32px 32px;
+}
+
+.feature-card:hover {
+  background: var(--bg-elevated);
+}
+
+.feature-icon {
+  font-size: 20px;
+  color: var(--amber);
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.feature-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}

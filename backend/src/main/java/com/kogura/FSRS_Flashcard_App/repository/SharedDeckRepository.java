@@ -12,4 +12,6 @@ public interface SharedDeckRepository extends JpaRepository<SharedDeck, Long> {
   List<SharedDeck> findByUser(User user);
   boolean existsByDeckAndUser(Deck deck, User user);
   void deleteByDeckAndUser(Deck deck, User user);
+  void deleteByUser(User user);
+  void deleteBySharer(User sharer);
 }

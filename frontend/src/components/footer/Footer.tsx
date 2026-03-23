@@ -1,3 +1,5 @@
+import "./Footer.css";
+
 function Footer() {
   // TODO: Link GitHub page
   return (
