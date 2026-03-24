@@ -17,6 +17,7 @@ export default function CreateDeckModal({
   existingDeckNames,
 }: CreateDeckModalProps) {
   const [deckName, setDeckName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +26,7 @@ export default function CreateDeckModal({
   useEffect(() => {
     if (isOpen) {
       setDeckName("");
+      setIsPublic(false);
       setError(null);
       setSubmitting(false);
       // Auto-focus after a tick so the element is rendered
@@ -65,7 +67,7 @@ export default function CreateDeckModal({
     setError(null);
     setSubmitting(true);
     try {
-      const newDeck = await createDeck(trimmed);
+      const newDeck = await createDeck(trimmed, isPublic);
       onCreated(newDeck);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -97,6 +99,25 @@ export default function CreateDeckModal({
               onChange={(e) => setDeckName(e.target.value)}
               disabled={submitting}
             />
+          </div>
+          <div className="form-field" style={{ marginTop: 8 }}>
+            <label className="toggle-row">
+              <span className="form-label">Make Public</span>
+              <span
+                className={`toggle-track ${isPublic ? "toggle-track--on" : ""}`}
+                role="switch"
+                aria-checked={isPublic}
+              >
+                <span className="toggle-thumb" />
+              </span>
+              <input
+                type="checkbox"
+                className="toggle-hidden"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                disabled={submitting}
+              />
+            </label>
           </div>
           {error && <div className="form-error">{error}</div>}
           <div className="modal-actions">

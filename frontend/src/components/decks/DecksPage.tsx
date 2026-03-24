@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDecks, toggleDeckVisibility, ApiError } from "../../api";
+import { getDecks, toggleDeckVisibility, deleteDeck, ApiError } from "../../api";
 import { useAuth } from "../context/useAuth";
 import type { Deck } from "../../api";
 import CreateDeckModal from "./CreateDeckModal";
@@ -13,6 +13,8 @@ export default function DecksPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [shareDeckTarget, setShareDeckTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   const auth = useAuth();
 
@@ -50,6 +52,20 @@ export default function DecksPage() {
       cancelled = true;
     };
   }, [navigate, auth]);
+
+  async function handleDeleteDeck() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteDeck(deleteTarget.id);
+      setDecks((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch {
+      // Keep modal open on failure so user can retry
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Show nothing while auth state is being determined
   if (auth.loading || (!auth.isAuthenticated && loading)) {
@@ -152,6 +168,12 @@ export default function DecksPage() {
                   >
                     Share
                   </button>
+                  <button
+                    className="btn btn-ghost btn-sm deck-delete-btn"
+                    onClick={() => setDeleteTarget({ id: deck.id, name: deck.name })}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -174,6 +196,33 @@ export default function DecksPage() {
           deckId={shareDeckTarget?.id ?? 0}
           deckName={shareDeckTarget?.name ?? ""}
         />
+
+        {deleteTarget && (
+          <div className="confirm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
+            <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <h2 className="confirm-title">Delete "{deleteTarget.name}"?</h2>
+              <p className="confirm-body">
+                This will permanently delete this deck and all its flashcards. This action cannot be undone.
+              </p>
+              <div className="confirm-actions">
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-sm confirm-delete-btn"
+                  onClick={handleDeleteDeck}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete Deck"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

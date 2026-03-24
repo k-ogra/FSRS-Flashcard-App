@@ -140,7 +140,7 @@ export async function getDecks(): Promise<Deck[]> {
   return res.json();
 }
 
-export async function createDeck(name: string): Promise<Deck> {
+export async function createDeck(name: string, isPublic: boolean): Promise<Deck> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/decks`, {
     method: "POST",
@@ -149,13 +149,28 @@ export async function createDeck(name: string): Promise<Deck> {
       "Content-Type": "application/json",
       "X-XSRF-TOKEN": csrfToken,
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, isPublic }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({ message: "Failed to create deck" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();
+}
+
+export async function deleteDeck(deckId: number): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${deckId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to delete deck" }));
+    throw new ApiError(data.message, res.status);
+  }
 }
 
 export async function getPublicDecks(): Promise<DeckSummary[]> {
