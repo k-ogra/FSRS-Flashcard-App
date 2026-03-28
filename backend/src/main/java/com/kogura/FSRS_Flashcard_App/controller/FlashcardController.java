@@ -61,7 +61,9 @@ public class FlashcardController {
     }
 
     Deck deck = optionalDeck.get();
-    Flashcard newFlashcard = new Flashcard(null, request.getQuestion(), request.getAnswer(), null, null, null, null, null);
+    Flashcard newFlashcard = new Flashcard();
+    newFlashcard.setQuestion(request.getQuestion());
+    newFlashcard.setAnswer(request.getAnswer());
     deck.getFlashcards().add(newFlashcard);
     Deck savedDeck = deckRepository.save(deck);
     Flashcard savedFlashcard = savedDeck.getFlashcards().get(savedDeck.getFlashcards().size() - 1);

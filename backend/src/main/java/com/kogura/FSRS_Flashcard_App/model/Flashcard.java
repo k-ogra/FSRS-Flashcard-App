@@ -15,6 +15,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import io.github.openspacedrepetition.State;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -34,6 +36,12 @@ public class Flashcard {
   private Double stability;        
   private Double difficulty;       
 
-  private Instant dueDate;        
-  private Instant lastReview;     
+  private State state;
+  private Integer step;
+
+  private Instant dueDate;
+  private Instant lastReview;
+
+  @Column(name = "deck_id", insertable = false, updatable = false)
+  private Long deckId;
 }

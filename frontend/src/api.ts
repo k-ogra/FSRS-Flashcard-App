@@ -17,8 +17,36 @@ export interface Deck {
     question: string;
     answer: string;
     createdAt: string;
+    stability: number | null;
+    difficulty: number | null;
+    state: FsrsState | null;
+    step: number | null;
+    dueDate: string | null;
+    lastReview: string | null;
   }[];
 }
+
+export type FsrsState = "LEARNING" | "REVIEW" | "RELEARNING";
+
+export interface FlashcardStudy {
+  id: number;
+  question: string;
+  answer: string;
+  state: "NEW" | "LEARNING" | "REVIEW";
+  dueDate: string | null;
+  againInterval: string;
+  hardInterval: string;
+  goodInterval: string;
+  easyInterval: string;
+}
+
+export interface DeckStats {
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
+}
+
+export type Grade = "AGAIN" | "HARD" | "GOOD" | "EASY";
 
 export interface DeckSummary {
   id: number;
@@ -107,7 +135,7 @@ export async function logout(): Promise<void> {
 
 export async function getAuthenticated(): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/authenticated`, {
-    credentials: "include"
+    credentials: "include",
   });
   const data: AuthResponse = await res.json();
   if (!res.ok) throw new ApiError(data.message, res.status);
@@ -124,7 +152,9 @@ export async function deleteAccount(): Promise<void> {
     },
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to delete account" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to delete account" }));
     throw new ApiError(data.message, res.status);
   }
 }
@@ -140,7 +170,10 @@ export async function getDecks(): Promise<Deck[]> {
   return res.json();
 }
 
-export async function createDeck(name: string, isPublic: boolean): Promise<Deck> {
+export async function createDeck(
+  name: string,
+  isPublic: boolean,
+): Promise<Deck> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/decks`, {
     method: "POST",
@@ -152,7 +185,9 @@ export async function createDeck(name: string, isPublic: boolean): Promise<Deck>
     body: JSON.stringify({ name, isPublic }),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to create deck" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to create deck" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();
@@ -168,7 +203,9 @@ export async function deleteDeck(deckId: number): Promise<void> {
     },
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to delete deck" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to delete deck" }));
     throw new ApiError(data.message, res.status);
   }
 }
@@ -178,7 +215,9 @@ export async function getPublicDecks(): Promise<DeckSummary[]> {
     credentials: "include",
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to load public decks" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load public decks" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();
@@ -189,13 +228,18 @@ export async function getSharedDecks(): Promise<DeckSummary[]> {
     credentials: "include",
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to load shared decks" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load shared decks" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();
 }
 
-export async function toggleDeckVisibility(deckId: number, isPublic: boolean): Promise<DeckSummary> {
+export async function toggleDeckVisibility(
+  deckId: number,
+  isPublic: boolean,
+): Promise<DeckSummary> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/decks/${deckId}/visibility`, {
     method: "PATCH",
@@ -207,14 +251,19 @@ export async function toggleDeckVisibility(deckId: number, isPublic: boolean): P
     body: JSON.stringify({ isPublic }),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to update visibility" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to update visibility" }));
     throw new ApiError(data.message, res.status);
   }
-  console.log("TOGGLING")
+  console.log("TOGGLING");
   return res.json();
 }
 
-export async function shareDeck(deckId: number, username: string): Promise<{ message: string }> {
+export async function shareDeck(
+  deckId: number,
+  username: string,
+): Promise<{ message: string }> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/decks/${deckId}/share`, {
     method: "POST",
@@ -230,7 +279,10 @@ export async function shareDeck(deckId: number, username: string): Promise<{ mes
   return data;
 }
 
-export async function unshareDeck(deckId: number, userId: number): Promise<void> {
+export async function unshareDeck(
+  deckId: number,
+  userId: number,
+): Promise<void> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/decks/${deckId}/share/${userId}`, {
     method: "DELETE",
@@ -240,7 +292,112 @@ export async function unshareDeck(deckId: number, userId: number): Promise<void>
     },
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({ message: "Failed to unshare deck" }));
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to unshare deck" }));
+    throw new ApiError(data.message, res.status);
+  }
+}
+
+export async function getNewQueue(deckId: number): Promise<FlashcardStudy[]> {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/new`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load new queue" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getLearningQueue(
+  deckId: number,
+): Promise<FlashcardStudy[]> {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/learning`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load learning queue" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getReviewQueue(
+  deckId: number,
+): Promise<FlashcardStudy[]> {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/review`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load review queue" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function submitReview(
+  deckId: number,
+  flashcardId: number,
+  grade: Grade,
+): Promise<FlashcardStudy> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/review`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ flashcardId, grade }),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to submit review" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getAllDeckStats(): Promise<Record<number, DeckStats>> {
+  const res = await fetch(`${API_ROOT}/decks/stats`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load stats" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function createFlashcard(
+  deckId: number,
+  question: string,
+  answer: string,
+): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/flashcards`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ deckId, question, answer }),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to create flashcard" }));
     throw new ApiError(data.message, res.status);
   }
 }

@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDecks, toggleDeckVisibility, deleteDeck, ApiError } from "../../api";
+import {
+  getDecks,
+  toggleDeckVisibility,
+  deleteDeck,
+  getAllDeckStats,
+  ApiError,
+} from "../../api";
 import { useAuth } from "../context/useAuth";
-import type { Deck } from "../../api";
+import type { Deck, DeckStats } from "../../api";
 import CreateDeckModal from "./CreateDeckModal";
 import ShareDeckModal from "./ShareDeckModal";
 import "./DecksPage.css";
@@ -12,9 +18,16 @@ export default function DecksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [shareDeckTarget, setShareDeckTarget] = useState<{ id: number; name: string } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [shareDeckTarget, setShareDeckTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deckStats, setDeckStats] = useState<Record<number, DeckStats>>({});
   const navigate = useNavigate();
   const auth = useAuth();
 
@@ -32,8 +45,14 @@ export default function DecksPage() {
 
     async function fetchDecks() {
       try {
-        const data = await getDecks();
-        if (!cancelled) setDecks(data);
+        const [data, stats] = await Promise.all([
+          getDecks(),
+          getAllDeckStats(),
+        ]);
+        if (!cancelled) {
+          setDecks(data);
+          setDeckStats(stats);
+        }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
@@ -131,7 +150,12 @@ export default function DecksPage() {
         ) : (
           <div className="decks-grid">
             {decks.map((deck) => (
-              <div key={deck.id} className="deck-card">
+              <div
+                key={deck.id}
+                className="deck-card"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate(`/my-decks/${deck.id}/study`)}
+              >
                 <h3 className="deck-card-name">{deck.name}</h3>
                 <p className="deck-card-count">
                   {(deck.flashcards ?? []).length} card
@@ -143,19 +167,46 @@ export default function DecksPage() {
                 <p className="deck-card-date">
                   {deck.isPublic ? "Public Deck" : "Private Deck"}
                 </p>
-                <div className="deck-card-actions">
+                <div className="deck-card-stats">
+                  <div className="deck-stat deck-stat--new">
+                    <span className="deck-stat-value">
+                      {deckStats[deck.id]?.newCount ?? 0}
+                    </span>
+                    <span className="deck-stat-label">New</span>
+                  </div>
+                  <div className="deck-stat deck-stat--learn">
+                    <span className="deck-stat-value">
+                      {deckStats[deck.id]?.learningCount ?? 0}
+                    </span>
+                    <span className="deck-stat-label">Learn</span>
+                  </div>
+                  <div className="deck-stat deck-stat--due">
+                    <span className="deck-stat-value">
+                      {deckStats[deck.id]?.reviewCount ?? 0}
+                    </span>
+                    <span className="deck-stat-label">Review</span>
+                  </div>
+                </div>
+                <div
+                  className="deck-card-actions"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     className={`visibility-badge ${deck.isPublic ? "visibility-badge--public" : ""}`}
                     onClick={async () => {
                       try {
-                        const updated = await toggleDeckVisibility(deck.id, !deck.isPublic);
+                        const updated = await toggleDeckVisibility(
+                          deck.id,
+                          !deck.isPublic,
+                        );
                         setDecks((prev) =>
                           prev.map((d) =>
-                            d.id === deck.id ? { ...d, isPublic: updated.isPublic } : d
-                          )
+                            d.id === deck.id
+                              ? { ...d, isPublic: updated.isPublic }
+                              : d,
+                          ),
                         );
                       } catch {
-                        // TODO: Add error msg? 
                         // silently fail — user can retry
                       }
                     }}
@@ -164,13 +215,17 @@ export default function DecksPage() {
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setShareDeckTarget({ id: deck.id, name: deck.name })}
+                    onClick={() =>
+                      setShareDeckTarget({ id: deck.id, name: deck.name })
+                    }
                   >
                     Share
                   </button>
                   <button
                     className="btn btn-ghost btn-sm deck-delete-btn"
-                    onClick={() => setDeleteTarget({ id: deck.id, name: deck.name })}
+                    onClick={() =>
+                      setDeleteTarget({ id: deck.id, name: deck.name })
+                    }
                   >
                     Delete
                   </button>
@@ -198,11 +253,15 @@ export default function DecksPage() {
         />
 
         {deleteTarget && (
-          <div className="confirm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
+          <div
+            className="confirm-overlay"
+            onClick={() => !deleting && setDeleteTarget(null)}
+          >
             <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
               <h2 className="confirm-title">Delete "{deleteTarget.name}"?</h2>
               <p className="confirm-body">
-                This will permanently delete this deck and all its flashcards. This action cannot be undone.
+                This will permanently delete this deck and all its flashcards.
+                This action cannot be undone.
               </p>
               <div className="confirm-actions">
                 <button

@@ -6,8 +6,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.kogura.FSRS_Flashcard_App.dto.DeckResponse;
+import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
 import com.kogura.FSRS_Flashcard_App.dto.ShareRequest;
 import com.kogura.FSRS_Flashcard_App.dto.VisibilityRequest;
+import com.kogura.FSRS_Flashcard_App.service.StudyService;
 import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.SharedDeck;
 import com.kogura.FSRS_Flashcard_App.model.User;
@@ -30,12 +32,14 @@ public class DeckController {
   private final DeckRepository deckRepository;
   private final SharedDeckRepository sharedDeckRepository;
   private final UserRepository userRepository;
+  private final StudyService studyService;
 
   @Autowired
-  public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository, UserRepository userRepository) {
+  public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository, UserRepository userRepository, StudyService studyService) {
     this.deckRepository = deckRepository;
     this.sharedDeckRepository = sharedDeckRepository;
     this.userRepository = userRepository;
+    this.studyService = studyService;
   }
 
   private User getAuthenticatedUser() {
@@ -48,6 +52,17 @@ public class DeckController {
   public List<Deck> getAllDecks() {
     User user = getAuthenticatedUser();
     return deckRepository.findByUser(user);
+  }
+
+  @GetMapping("/stats")
+  public ResponseEntity<Map<Long, DeckStatsDTO>> getAllDeckStats() {
+    User user = getAuthenticatedUser();
+    List<Deck> decks = deckRepository.findByUser(user);
+    Map<Long, DeckStatsDTO> statsMap = new java.util.HashMap<>();
+    for (Deck deck : decks) {
+      statsMap.put(deck.getId(), studyService.getDeckStudyCounts(deck.getId()));
+    }
+    return ResponseEntity.ok(statsMap);
   }
 
   @GetMapping("/public")

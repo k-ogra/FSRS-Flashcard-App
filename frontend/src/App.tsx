@@ -6,6 +6,7 @@ import LoginPage from "./components/login/LoginPage";
 import DecksPage from "./components/decks/DecksPage";
 import SharedDecksPage from "./components/decks/SharedDecksPage";
 import PublicDecksPage from "./components/decks/PublicDecksPage";
+import StudyPage from "./components/study/StudyPage";
 import NotFoundPage from "./components/notfound/NotFoundPage";
 import "./App.css";
 
@@ -18,6 +19,7 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/my-decks" element={<DecksPage />} />
+        <Route path="/my-decks/:id/study" element={<StudyPage />} />
         <Route path="/shared-decks" element={<SharedDecksPage />} />
         <Route path="/public-decks" element={<PublicDecksPage />} />
         <Route path="*" element={<NotFoundPage />} />

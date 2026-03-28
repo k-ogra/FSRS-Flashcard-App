@@ -90,6 +90,41 @@
   margin-top: 2px;
 }
 
+.deck-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.deck-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.deck-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.deck-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-stat--new .deck-stat-value { color: #3b82f6; }
+.deck-stat--new .deck-stat-label { color: #60a5fa; }
+
+.deck-stat--learn .deck-stat-value { color: #f59e0b; }
+.deck-stat--learn .deck-stat-label { color: #fbbf24; }
+
+.deck-stat--due .deck-stat-value { color: #10b981; }
+.deck-stat--due .deck-stat-label { color: #34d399; }
+
 .deck-card-actions {
   display: flex;
   align-items: center;
