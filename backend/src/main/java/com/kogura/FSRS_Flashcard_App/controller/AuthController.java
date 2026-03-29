@@ -25,11 +25,29 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
+    /**
+     * The authentication service.
+     */
     private final AuthService authService;
+    /**
+     * The user repository.
+     */
     private final UserRepository userRepository;
+    /**
+     * The deck repository.
+     */
     private final DeckRepository deckRepository;
+    /**
+     * The shared deck repository.
+     */
     private final SharedDeckRepository sharedDeckRepository;
 
+    /*
+     * Sign up a new user.
+     * @param request The signup request.
+     * @param httpRequest The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request,
                                                HttpServletRequest httpRequest) {
@@ -75,6 +93,11 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Login successful", request.getUsername()));
     }
 
+    /**
+     * Log out a user.
+     * @param request The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/logout")
     public ResponseEntity<AuthResponse> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
@@ -85,6 +108,11 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Logged out successfully", null));
     }
 
+    /**
+     * Get the CSRF token.
+     * @param csrfToken The CSRF token.
+     * @return The authentication response.
+     */
     @GetMapping("/csrf")
     public ResponseEntity<AuthResponse> csrf(CsrfToken csrfToken) {
         // Force the token to be generated and the cookie to be set
@@ -92,7 +120,11 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("CSRF token set", null));
     }
 
-    
+    /**
+     * Delete a user's account.
+     * @param request The HTTP request.
+     * @return The authentication response.
+     */
     @DeleteMapping("/account")
     @Transactional
     public ResponseEntity<AuthResponse> deleteAccount(HttpServletRequest request) {
@@ -126,6 +158,10 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Account deleted successfully", null));
     }
 
+    /**
+     * Check if the user is authenticated.
+     * @return The authentication response if the user is authenticated, otherwise return an unauthorized response.
+     */
     @GetMapping("/authenticated")
     public ResponseEntity<AuthResponse> authenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

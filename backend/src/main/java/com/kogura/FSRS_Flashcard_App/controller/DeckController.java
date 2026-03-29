@@ -5,12 +5,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.kogura.FSRS_Flashcard_App.dto.CopyDeckRequest;
 import com.kogura.FSRS_Flashcard_App.dto.DeckResponse;
 import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
 import com.kogura.FSRS_Flashcard_App.dto.ShareRequest;
 import com.kogura.FSRS_Flashcard_App.dto.VisibilityRequest;
 import com.kogura.FSRS_Flashcard_App.service.StudyService;
 import com.kogura.FSRS_Flashcard_App.model.Deck;
+import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 import com.kogura.FSRS_Flashcard_App.model.SharedDeck;
 import com.kogura.FSRS_Flashcard_App.model.User;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
@@ -19,6 +21,7 @@ import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -217,5 +220,61 @@ public class DeckController {
 
     sharedDeckRepository.deleteByDeckAndUser(deck, recipientOpt.get());
     return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/{id}/copy")
+  public ResponseEntity<?> copyDeck(@PathVariable Long id, @RequestBody CopyDeckRequest request) {
+    User user = getAuthenticatedUser();
+    Optional<Deck> optDeck = deckRepository.findById(id);
+    if (optDeck.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+    Deck source = optDeck.get();
+
+    boolean isOwner = source.getUser().getId().equals(user.getId());
+    if (isOwner) {
+      return ResponseEntity.badRequest()
+          .body(Map.of("message", "Cannot copy your own deck"));
+    }
+
+    boolean isShared = sharedDeckRepository.existsByDeckAndUser(source, user);
+    boolean isPublicDeck = source.isPublic();
+    if (!isShared && !isPublicDeck) {
+      return ResponseEntity.notFound().build();
+    }
+
+    String name = request.getName();
+    if (name == null || name.trim().isEmpty()) {
+      return ResponseEntity.badRequest()
+          .body(Map.of("message", "Deck name cannot be empty"));
+    }
+    name = name.trim();
+
+    if (deckRepository.existsByNameAndUser(name, user)) {
+      return ResponseEntity.status(409)
+          .body(Map.of("message", "A deck with this name already exists"));
+    }
+
+    Deck newDeck = new Deck();
+    newDeck.setName(name);
+    newDeck.setUser(user);
+    newDeck.setPublic(false);
+
+    List<Flashcard> copiedCards = new ArrayList<>();
+    for (Flashcard src : source.getFlashcards()) {
+      Flashcard copy = new Flashcard();
+      copy.setQuestion(src.getQuestion());
+      copy.setAnswer(src.getAnswer());
+      copiedCards.add(copy);
+    }
+    newDeck.setFlashcards(copiedCards);
+
+    try {
+      Deck saved = deckRepository.save(newDeck);
+      return ResponseEntity.ok(saved);
+    } catch (DataIntegrityViolationException e) {
+      return ResponseEntity.status(409)
+          .body(Map.of("message", "A deck with this name already exists"));
+    }
   }
 }

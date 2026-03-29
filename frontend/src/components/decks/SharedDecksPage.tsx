@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSharedDecks, ApiError } from "../../api";
+import { getSharedDecks, copyDeck, ApiError } from "../../api";
 import { useAuth } from "../context/useAuth";
 import type { DeckSummary } from "../../api";
 import "./DecksPage.css";
@@ -11,6 +11,13 @@ export default function SharedDecksPage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const auth = useAuth();
+
+  const [copyTarget, setCopyTarget] = useState<DeckSummary | null>(null);
+  const [copyName, setCopyName] = useState("");
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const copyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (auth.loading) return;
@@ -43,6 +50,45 @@ export default function SharedDecksPage() {
       cancelled = true;
     };
   }, [navigate, auth]);
+
+  function openCopyModal(deck: DeckSummary) {
+    setCopyTarget(deck);
+    setCopyName(deck.name);
+    setCopyError(null);
+    setCopySuccess(null);
+    setTimeout(() => copyInputRef.current?.focus(), 0);
+  }
+
+  function closeCopyModal() {
+    setCopyTarget(null);
+    setCopyName("");
+    setCopyError(null);
+    setCopySuccess(null);
+  }
+
+  async function handleCopySubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!copyTarget) return;
+    const trimmed = copyName.trim();
+    if (!trimmed) {
+      setCopyError("Deck name cannot be empty.");
+      return;
+    }
+    setCopyError(null);
+    setCopying(true);
+    try {
+      await copyDeck(copyTarget.id, trimmed);
+      setCopySuccess("Deck added to your collection!");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setCopyError(err.message);
+      } else {
+        setCopyError("Failed to copy deck.");
+      }
+    } finally {
+      setCopying(false);
+    }
+  }
 
   if (auth.loading || (!auth.isAuthenticated && loading)) {
     return null;
@@ -100,8 +146,63 @@ export default function SharedDecksPage() {
                 <p className="deck-card-owner">
                   Shared by {deck.sharedByUsername}
                 </p>
+                <button
+                  className="copy-deck-btn"
+                  onClick={() => openCopyModal(deck)}
+                >
+                  + Add to My Decks
+                </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {copyTarget && (
+          <div className="modal-overlay" onClick={closeCopyModal}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <h2 className="modal-heading">Add to My Decks</h2>
+              <form onSubmit={handleCopySubmit}>
+                <label className="form-label" htmlFor="copy-deck-name">
+                  Deck name
+                </label>
+                <input
+                  ref={copyInputRef}
+                  id="copy-deck-name"
+                  className="form-input"
+                  type="text"
+                  value={copyName}
+                  onChange={(e) => setCopyName(e.target.value)}
+                  disabled={copying}
+                />
+                {copyError && (
+                  <p className="form-error" style={{ marginTop: 8 }}>
+                    {copyError}
+                  </p>
+                )}
+                {copySuccess && (
+                  <p className="form-success" style={{ marginTop: 8 }}>
+                    {copySuccess}
+                  </p>
+                )}
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={closeCopyModal}
+                    disabled={copying}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={copying}
+                  >
+                    {copying ? "Copying..." : "Add Deck"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>

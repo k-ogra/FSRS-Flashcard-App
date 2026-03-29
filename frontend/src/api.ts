@@ -379,6 +379,29 @@ export async function getAllDeckStats(): Promise<Record<number, DeckStats>> {
   return res.json();
 }
 
+export async function copyDeck(
+  sourceDeckId: number,
+  name: string,
+): Promise<Deck> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/decks/${sourceDeckId}/copy`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to copy deck" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
 export async function createFlashcard(
   deckId: number,
   question: string,

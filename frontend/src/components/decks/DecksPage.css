@@ -180,6 +180,33 @@ button.deck-delete-btn:hover {
   background: rgba(248, 113, 113, 0.08);
 }
 
+/* ── Copy Deck Button ────────────────────────────────────── */
+.copy-deck-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--amber-dim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.copy-deck-btn:hover {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: var(--amber);
+}
+.copy-deck-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.copy-deck-btn:active {
+  background: rgba(45, 212, 191, 0.15);
+}
+
 /* ── Empty State ──────────────────────────────────────────── */
 .decks-empty {
   text-align: center;
