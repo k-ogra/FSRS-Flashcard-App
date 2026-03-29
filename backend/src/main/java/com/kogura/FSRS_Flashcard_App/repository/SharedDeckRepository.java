@@ -14,4 +14,5 @@ public interface SharedDeckRepository extends JpaRepository<SharedDeck, Long> {
   void deleteByDeckAndUser(Deck deck, User user);
   void deleteByUser(User user);
   void deleteBySharer(User sharer);
+  void deleteByDeck(Deck deck);
 }

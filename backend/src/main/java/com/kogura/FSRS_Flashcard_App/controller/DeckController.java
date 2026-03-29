@@ -142,6 +142,7 @@ public class DeckController {
     return ResponseEntity.ok(updated);
   }
 
+  @Transactional
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteDeck(@PathVariable Long id) {
     User user = getAuthenticatedUser();
@@ -149,6 +150,7 @@ public class DeckController {
     if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
       return ResponseEntity.notFound().build();
     }
+    sharedDeckRepository.deleteByDeck(optionalDeck.get());
     deckRepository.deleteById(id);
     return ResponseEntity.noContent().build();
   }
