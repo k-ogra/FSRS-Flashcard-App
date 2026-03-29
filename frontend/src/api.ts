@@ -142,6 +142,45 @@ export async function getAuthenticated(): Promise<AuthResponse> {
   return data;
 }
 
+export interface UserSettings {
+  reviewAheadMinutes: number;
+}
+
+export async function getUserSettings(): Promise<UserSettings> {
+  const res = await fetch(`${API_BASE}/settings`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load settings" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function updateUserSettings(
+  settings: UserSettings,
+): Promise<UserSettings> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_BASE}/settings`, {
+    method: "PUT",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to update settings" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
 export async function deleteAccount(): Promise<void> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_BASE}/account`, {
@@ -314,8 +353,10 @@ export async function getNewQueue(deckId: number): Promise<FlashcardStudy[]> {
 
 export async function getLearningQueue(
   deckId: number,
+  aheadMinutes?: number,
 ): Promise<FlashcardStudy[]> {
-  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/learning`, {
+  const params = aheadMinutes != null ? `?aheadMinutes=${aheadMinutes}` : "";
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/learning${params}`, {
     credentials: "include",
   });
   if (!res.ok) {
@@ -329,8 +370,10 @@ export async function getLearningQueue(
 
 export async function getReviewQueue(
   deckId: number,
+  aheadMinutes?: number,
 ): Promise<FlashcardStudy[]> {
-  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/review`, {
+  const params = aheadMinutes != null ? `?aheadMinutes=${aheadMinutes}` : "";
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/review${params}`, {
     credentials: "include",
   });
   if (!res.ok) {

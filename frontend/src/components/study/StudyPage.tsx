@@ -6,6 +6,7 @@ import {
   getReviewQueue,
   submitReview,
   createFlashcard,
+  getUserSettings,
   ApiError,
 } from "../../api";
 import type { FlashcardStudy, Grade } from "../../api";
@@ -49,6 +50,7 @@ export default function StudyPage() {
   const [newQueue, setNewQueue] = useState<FlashcardStudy[]>([]);
   const [learningQueue, setLearningQueue] = useState<FlashcardStudy[]>([]);
   const [reviewQueue, setReviewQueue] = useState<FlashcardStudy[]>([]);
+  const [reviewAheadMinutes, setReviewAheadMinutes] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -68,10 +70,13 @@ export default function StudyPage() {
     setLoading(true);
     setError(null);
     try {
+      const settings = await getUserSettings();
+      const ahead = settings.reviewAheadMinutes;
+      setReviewAheadMinutes(ahead);
       const [newCards, learningCards, reviewCards] = await Promise.all([
         getNewQueue(deckId),
-        getLearningQueue(deckId),
-        getReviewQueue(deckId),
+        getLearningQueue(deckId, ahead),
+        getReviewQueue(deckId, ahead),
       ]);
       setNewQueue(newCards);
       setLearningQueue(learningCards);
@@ -129,9 +134,8 @@ export default function StudyPage() {
       shiftCurrentCard();
       setStudied((s) => s + 1);
 
-      // Re-insert if still due
-      // TODO: Use user-configurable reviewAheadTime
-      const reviewAheadTime = 20 * 60 * 1000;
+      // Re-insert if still due within the review-ahead window
+      const reviewAheadTime = reviewAheadMinutes * 60 * 1000;
       const isDue =
         updated.dueDate &&
         new Date(updated.dueDate) <= new Date(Date.now() + reviewAheadTime);

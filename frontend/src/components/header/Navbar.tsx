@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { logout as apiLogout, deleteAccount as apiDeleteAccount } from "../../api";
+import { logout as apiLogout } from "../../api";
 import "./Navbar.css";
 
 function PersonIcon() {
@@ -27,8 +27,6 @@ function Navbar() {
   const location = useLocation();
   const auth = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -64,21 +62,6 @@ function Navbar() {
     }
     auth.logoutSuccess();
     navigate("/");
-  }
-
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    try {
-      await apiDeleteAccount();
-      setConfirmOpen(false);
-      setDeleting(false);
-      auth.logoutSuccess();
-      navigate("/");
-
-    } catch {
-      // Keep modal open on failure so user can retry
-      setDeleting(false);
-    }
   }
 
   return (
@@ -123,20 +106,18 @@ function Navbar() {
                 </button>
                 {dropdownOpen && (
                   <div className="avatar-dropdown">
+                    <Link
+                      className="avatar-dropdown-item"
+                      to="/settings"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      Settings
+                    </Link>
                     <button
                       className="avatar-dropdown-item"
                       onClick={handleLogout}
                     >
                       Log Out
-                    </button>
-                    <button
-                      className="avatar-dropdown-item avatar-dropdown-item--danger"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        setConfirmOpen(true);
-                      }}
-                    >
-                      Delete Account
                     </button>
                   </div>
                 )}
@@ -155,34 +136,6 @@ function Navbar() {
         </div>
       </nav>
 
-      {/* Delete Account Confirmation Modal */}
-      {confirmOpen && (
-        <div className="confirm-overlay" onClick={() => !deleting && setConfirmOpen(false)}>
-          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="confirm-title">Delete your account?</h2>
-            <p className="confirm-body">
-              This will permanently delete your account, all your decks, and all
-              shared decks. This action cannot be undone.
-            </p>
-            <div className="confirm-actions">
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setConfirmOpen(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-sm confirm-delete-btn"
-                onClick={handleDeleteAccount}
-                disabled={deleting}
-              >
-                {deleting ? "Deleting..." : "Delete Account"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

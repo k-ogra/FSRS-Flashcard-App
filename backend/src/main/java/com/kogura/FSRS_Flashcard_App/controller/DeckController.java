@@ -17,7 +17,9 @@ import com.kogura.FSRS_Flashcard_App.model.SharedDeck;
 import com.kogura.FSRS_Flashcard_App.model.User;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
+import com.kogura.FSRS_Flashcard_App.model.UserSettings;
 import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -35,13 +37,16 @@ public class DeckController {
   private final DeckRepository deckRepository;
   private final SharedDeckRepository sharedDeckRepository;
   private final UserRepository userRepository;
+  private final UserSettingsRepository userSettingsRepository;
   private final StudyService studyService;
 
   @Autowired
-  public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository, UserRepository userRepository, StudyService studyService) {
+  public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository,
+      UserRepository userRepository, UserSettingsRepository userSettingsRepository, StudyService studyService) {
     this.deckRepository = deckRepository;
     this.sharedDeckRepository = sharedDeckRepository;
     this.userRepository = userRepository;
+    this.userSettingsRepository = userSettingsRepository;
     this.studyService = studyService;
   }
 
@@ -57,13 +62,20 @@ public class DeckController {
     return deckRepository.findByUser(user);
   }
 
+  /**
+   * Get the study stats for all decks. Uses the user's reviewAheadMinutes setting to determine the cutoff time for review cards.
+   * @return The study stats for all decks.
+   */
   @GetMapping("/stats")
   public ResponseEntity<Map<Long, DeckStatsDTO>> getAllDeckStats() {
     User user = getAuthenticatedUser();
+    int aheadMinutes = userSettingsRepository.findByUser(user)
+        .map(UserSettings::getReviewAheadMinutes).orElse(20);
     List<Deck> decks = deckRepository.findByUser(user);
     Map<Long, DeckStatsDTO> statsMap = new java.util.HashMap<>();
+    // Only count cards that are due within the aheadMinutes cutoff time.
     for (Deck deck : decks) {
-      statsMap.put(deck.getId(), studyService.getDeckStudyCounts(deck.getId()));
+      statsMap.put(deck.getId(), studyService.getDeckStudyCounts(deck.getId(), aheadMinutes));
     }
     return ResponseEntity.ok(statsMap);
   }

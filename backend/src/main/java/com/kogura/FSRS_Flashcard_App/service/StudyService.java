@@ -71,20 +71,20 @@ public class StudyService {
         .toList();
   }
 
-  public List<FlashcardStudyDTO> getLearningQueue(Long deckId) {
-    Instant now = Instant.now();
+  public List<FlashcardStudyDTO> getLearningQueue(Long deckId, int aheadMinutes) {
+    Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
     List<Flashcard> learningCards = flashcardRepository
-        .findByDeckIdAndStateInAndDueDateLessThanEqual(deckId, List.of(State.LEARNING, State.RELEARNING), now);
+        .findByDeckIdAndStateInAndDueDateLessThanEqual(deckId, List.of(State.LEARNING, State.RELEARNING), cutoff);
     return learningCards.stream()
         .map(this::buildStudyDTO)
         .sorted(Comparator.comparing(FlashcardStudyDTO::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
         .toList();
   }
 
-  public List<FlashcardStudyDTO> getReviewQueue(Long deckId) {
-    Instant now = Instant.now();
+  public List<FlashcardStudyDTO> getReviewQueue(Long deckId, int aheadMinutes) {
+    Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
     List<Flashcard> reviewCards = flashcardRepository
-        .findByDeckIdAndStateAndDueDateLessThanEqual(deckId, State.REVIEW, now);
+        .findByDeckIdAndStateAndDueDateLessThanEqual(deckId, State.REVIEW, cutoff);
     return reviewCards.stream()
         .map(this::buildStudyDTO)
         .sorted(Comparator.comparing(FlashcardStudyDTO::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -114,13 +114,13 @@ public class StudyService {
     return buildStudyDTO(saved);
   }
 
-  public DeckStatsDTO getDeckStudyCounts(Long deckId) {
-    Instant now = Instant.now();
+  public DeckStatsDTO getDeckStudyCounts(Long deckId, int aheadMinutes) {
+    Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
     int newCount = flashcardRepository.countByDeckIdAndLastReviewIsNull(deckId);
     int learningCount = flashcardRepository.countByDeckIdAndStateInAndDueDateLessThanEqual(
-        deckId, List.of(State.LEARNING, State.RELEARNING), now);
+        deckId, List.of(State.LEARNING, State.RELEARNING), cutoff);
     int reviewCount = flashcardRepository.countByDeckIdAndStateAndDueDateLessThanEqual(
-        deckId, State.REVIEW, now);
+        deckId, State.REVIEW, cutoff);
     return new DeckStatsDTO(newCount, learningCount, reviewCount);
   }
 }

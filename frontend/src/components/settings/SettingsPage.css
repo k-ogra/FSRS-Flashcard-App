@@ -1,0 +1,156 @@
+/* ============================================================
+   Settings Page — Matches App.css design tokens
+   ============================================================ */
+
+.settings-page {
+  min-height: calc(100vh - 60px);
+  padding: 64px 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45, 212, 191, 0.05) 0%, transparent 70%);
+}
+
+.settings-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.settings-heading {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.settings-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+
+/* ── Section ─────────────────────────────────────────────── */
+.settings-section {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-section-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.settings-section-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+/* ── Field ───────────────────────────────────────────────── */
+.settings-field {
+  margin-bottom: 20px;
+}
+
+.settings-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.settings-field-help {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.settings-input {
+  display: block;
+  width: 120px;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.settings-input:hover {
+  border-color: var(--amber-dim);
+}
+.settings-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+.settings-save-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-save-msg {
+  font-size: 13px;
+  color: var(--amber);
+}
+
+/* ── Danger Zone ─────────────────────────────────────────── */
+.settings-section--danger {
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.settings-section--danger .settings-section-title {
+  color: #f87171;
+}
+
+.settings-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #ef4444;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.settings-delete-btn:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+}
+.settings-delete-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+.settings-delete-btn:active {
+  background: #b91c1c;
+}
+.settings-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .settings-inner {
+    padding: 0 20px;
+  }
+}

@@ -7,6 +7,7 @@ import DecksPage from "./components/decks/DecksPage";
 import SharedDecksPage from "./components/decks/SharedDecksPage";
 import PublicDecksPage from "./components/decks/PublicDecksPage";
 import StudyPage from "./components/study/StudyPage";
+import SettingsPage from "./components/settings/SettingsPage";
 import NotFoundPage from "./components/notfound/NotFoundPage";
 import "./App.css";
 
@@ -22,6 +23,7 @@ function App() {
         <Route path="/my-decks/:id/study" element={<StudyPage />} />
         <Route path="/shared-decks" element={<SharedDecksPage />} />
         <Route path="/public-decks" element={<PublicDecksPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>

@@ -3,10 +3,13 @@ package com.kogura.FSRS_Flashcard_App.controller;
 import com.kogura.FSRS_Flashcard_App.dto.AuthResponse;
 import com.kogura.FSRS_Flashcard_App.dto.LoginRequest;
 import com.kogura.FSRS_Flashcard_App.dto.SignupRequest;
+import com.kogura.FSRS_Flashcard_App.dto.UserSettingsDTO;
 import com.kogura.FSRS_Flashcard_App.model.User;
+import com.kogura.FSRS_Flashcard_App.model.UserSettings;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import com.kogura.FSRS_Flashcard_App.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -41,6 +44,10 @@ public class AuthController {
      * The shared deck repository.
      */
     private final SharedDeckRepository sharedDeckRepository;
+    /**
+     * The user settings repository.
+     */
+    private final UserSettingsRepository userSettingsRepository;
 
     /*
      * Sign up a new user.
@@ -138,6 +145,9 @@ public class AuthController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Remove user settings
+        userSettingsRepository.deleteByUser(user);
+
         // Remove shared deck records where user is recipient or sharer
         sharedDeckRepository.deleteByUser(user);
         sharedDeckRepository.deleteBySharer(user);
@@ -170,5 +180,52 @@ public class AuthController {
             return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
         }
         return ResponseEntity.ok(new AuthResponse("Authenticated", authentication.getName()));
+    }
+
+    /**
+     * Get the user settings.
+     * @return The user settings.
+     */
+    @GetMapping("/settings")
+    public ResponseEntity<UserSettingsDTO> getSettings() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).build();
+        }
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserSettings settings = userSettingsRepository.findByUser(user)
+                .orElseGet(() -> {
+                    UserSettings s = new UserSettings();
+                    s.setUser(user);
+                    return userSettingsRepository.save(s);
+                });
+        return ResponseEntity.ok(new UserSettingsDTO(settings.getReviewAheadMinutes()));
+    }
+
+    /**
+     * Update the user settings.
+     * @param request The user settings request.
+     * @return The updated user settings.
+     */
+    @PutMapping("/settings")
+    public ResponseEntity<UserSettingsDTO> updateSettings(@RequestBody UserSettingsDTO request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).build();
+        }
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserSettings settings = userSettingsRepository.findByUser(user)
+                .orElseGet(() -> {
+                    UserSettings s = new UserSettings();
+                    s.setUser(user);
+                    return s;
+                });
+        settings.setReviewAheadMinutes(Math.max(0, request.getReviewAheadMinutes()));
+        userSettingsRepository.save(settings);
+        return ResponseEntity.ok(new UserSettingsDTO(settings.getReviewAheadMinutes()));
     }
 }
