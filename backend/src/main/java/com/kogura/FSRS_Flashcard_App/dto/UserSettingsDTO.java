@@ -14,8 +14,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserSettingsDTO {
-  /**
-   * The number of minutes ahead of the current time that cards should be reviewed.
-   */
   private int reviewAheadMinutes;
+  private int dailyNewCardLimit;
+  private int dailyReviewLimit;
 }

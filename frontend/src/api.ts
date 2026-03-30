@@ -144,6 +144,8 @@ export async function getAuthenticated(): Promise<AuthResponse> {
 
 export interface UserSettings {
   reviewAheadMinutes: number;
+  dailyNewCardLimit: number;
+  dailyReviewLimit: number;
 }
 
 export async function getUserSettings(): Promise<UserSettings> {

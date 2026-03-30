@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Table for user settings.
+ */
 @Entity
 @Table(name = "user_settings")
 @Getter
@@ -20,6 +23,12 @@ public class UserSettings {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 20")
     private int reviewAheadMinutes = 20;
+
+    @Column(nullable = false, columnDefinition = "integer default 20")
+    private int dailyNewCardLimit = 20;
+
+    @Column(nullable = false, columnDefinition = "integer default 200")
+    private int dailyReviewLimit = 200;
 }

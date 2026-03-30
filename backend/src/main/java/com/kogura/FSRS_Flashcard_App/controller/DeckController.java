@@ -15,6 +15,7 @@ import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 import com.kogura.FSRS_Flashcard_App.model.SharedDeck;
 import com.kogura.FSRS_Flashcard_App.model.User;
+import com.kogura.FSRS_Flashcard_App.repository.DailyStudyProgressRepository;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
 import com.kogura.FSRS_Flashcard_App.model.UserSettings;
@@ -38,15 +39,18 @@ public class DeckController {
   private final SharedDeckRepository sharedDeckRepository;
   private final UserRepository userRepository;
   private final UserSettingsRepository userSettingsRepository;
+  private final DailyStudyProgressRepository dailyStudyProgressRepository;
   private final StudyService studyService;
 
   @Autowired
   public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository,
-      UserRepository userRepository, UserSettingsRepository userSettingsRepository, StudyService studyService) {
+      UserRepository userRepository, UserSettingsRepository userSettingsRepository,
+      DailyStudyProgressRepository dailyStudyProgressRepository, StudyService studyService) {
     this.deckRepository = deckRepository;
     this.sharedDeckRepository = sharedDeckRepository;
     this.userRepository = userRepository;
     this.userSettingsRepository = userSettingsRepository;
+    this.dailyStudyProgressRepository = dailyStudyProgressRepository;
     this.studyService = studyService;
   }
 
@@ -69,13 +73,18 @@ public class DeckController {
   @GetMapping("/stats")
   public ResponseEntity<Map<Long, DeckStatsDTO>> getAllDeckStats() {
     User user = getAuthenticatedUser();
-    int aheadMinutes = userSettingsRepository.findByUser(user)
-        .map(UserSettings::getReviewAheadMinutes).orElse(20);
+    UserSettings settings = userSettingsRepository.findByUser(user)
+        .orElseGet(() -> {
+          UserSettings s = new UserSettings();
+          s.setUser(user);
+          return userSettingsRepository.save(s);
+        });
     List<Deck> decks = deckRepository.findByUser(user);
     Map<Long, DeckStatsDTO> statsMap = new java.util.HashMap<>();
-    // Only count cards that are due within the aheadMinutes cutoff time.
     for (Deck deck : decks) {
-      statsMap.put(deck.getId(), studyService.getDeckStudyCounts(deck.getId(), aheadMinutes));
+      statsMap.put(deck.getId(), studyService.getDeckStudyCounts(
+          deck.getId(), settings.getReviewAheadMinutes(),
+          user, deck, settings.getDailyNewCardLimit(), settings.getDailyReviewLimit()));
     }
     return ResponseEntity.ok(statsMap);
   }
@@ -162,6 +171,7 @@ public class DeckController {
     if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
       return ResponseEntity.notFound().build();
     }
+    dailyStudyProgressRepository.deleteByDeck(optionalDeck.get());
     sharedDeckRepository.deleteByDeck(optionalDeck.get());
     deckRepository.deleteById(id);
     return ResponseEntity.noContent().build();

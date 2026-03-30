@@ -6,6 +6,7 @@ import com.kogura.FSRS_Flashcard_App.dto.SignupRequest;
 import com.kogura.FSRS_Flashcard_App.dto.UserSettingsDTO;
 import com.kogura.FSRS_Flashcard_App.model.User;
 import com.kogura.FSRS_Flashcard_App.model.UserSettings;
+import com.kogura.FSRS_Flashcard_App.repository.DailyStudyProgressRepository;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
@@ -23,6 +24,9 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controller for the authentication endpoints.
+ */
 @RestController
 @RequestMapping("/api/v0/auth")
 @RequiredArgsConstructor
@@ -48,8 +52,12 @@ public class AuthController {
      * The user settings repository.
      */
     private final UserSettingsRepository userSettingsRepository;
+    /**
+     * The daily study progress repository.
+     */
+    private final DailyStudyProgressRepository dailyStudyProgressRepository;
 
-    /*
+    /**
      * Sign up a new user.
      * @param request The signup request.
      * @param httpRequest The HTTP request.
@@ -83,6 +91,12 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Signup successful", user.getUsername()));
     }
 
+    /**
+     * Log in a user.
+     * @param request The login request.
+     * @param httpRequest The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request,
                                               HttpServletRequest httpRequest) {
@@ -145,7 +159,8 @@ public class AuthController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Remove user settings
+        // Remove daily study progress and user settings
+        dailyStudyProgressRepository.deleteByUser(user);
         userSettingsRepository.deleteByUser(user);
 
         // Remove shared deck records where user is recipient or sharer
@@ -201,7 +216,10 @@ public class AuthController {
                     s.setUser(user);
                     return userSettingsRepository.save(s);
                 });
-        return ResponseEntity.ok(new UserSettingsDTO(settings.getReviewAheadMinutes()));
+        return ResponseEntity.ok(new UserSettingsDTO(
+                settings.getReviewAheadMinutes(),
+                settings.getDailyNewCardLimit(),
+                settings.getDailyReviewLimit()));
     }
 
     /**
@@ -225,7 +243,12 @@ public class AuthController {
                     return s;
                 });
         settings.setReviewAheadMinutes(Math.max(0, request.getReviewAheadMinutes()));
+        settings.setDailyNewCardLimit(Math.max(0, request.getDailyNewCardLimit()));
+        settings.setDailyReviewLimit(Math.max(0, request.getDailyReviewLimit()));
         userSettingsRepository.save(settings);
-        return ResponseEntity.ok(new UserSettingsDTO(settings.getReviewAheadMinutes()));
+        return ResponseEntity.ok(new UserSettingsDTO(
+                settings.getReviewAheadMinutes(),
+                settings.getDailyNewCardLimit(),
+                settings.getDailyReviewLimit()));
     }
 }

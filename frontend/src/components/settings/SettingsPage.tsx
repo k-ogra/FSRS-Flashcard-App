@@ -18,6 +18,10 @@ function SettingsPage() {
   // Settings state
   const [reviewAheadMinutes, setReviewAheadMinutes] = useState(20);
   const [savedMinutes, setSavedMinutes] = useState(20);
+  const [dailyNewCardLimit, setDailyNewCardLimit] = useState(20);
+  const [savedNewLimit, setSavedNewLimit] = useState(20);
+  const [dailyReviewLimit, setDailyReviewLimit] = useState(200);
+  const [savedReviewLimit, setSavedReviewLimit] = useState(200);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
@@ -32,6 +36,10 @@ function SettingsPage() {
       .then((s) => {
         setReviewAheadMinutes(s.reviewAheadMinutes);
         setSavedMinutes(s.reviewAheadMinutes);
+        setDailyNewCardLimit(s.dailyNewCardLimit);
+        setSavedNewLimit(s.dailyNewCardLimit);
+        setDailyReviewLimit(s.dailyReviewLimit);
+        setSavedReviewLimit(s.dailyReviewLimit);
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
@@ -46,9 +54,17 @@ function SettingsPage() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const updated = await updateUserSettings({ reviewAheadMinutes });
+      const updated = await updateUserSettings({
+        reviewAheadMinutes,
+        dailyNewCardLimit,
+        dailyReviewLimit,
+      });
       setSavedMinutes(updated.reviewAheadMinutes);
       setReviewAheadMinutes(updated.reviewAheadMinutes);
+      setSavedNewLimit(updated.dailyNewCardLimit);
+      setDailyNewCardLimit(updated.dailyNewCardLimit);
+      setSavedReviewLimit(updated.dailyReviewLimit);
+      setDailyReviewLimit(updated.dailyReviewLimit);
       setSaveMsg("Settings saved.");
       setTimeout(() => setSaveMsg(null), 2000);
     } catch {
@@ -73,7 +89,10 @@ function SettingsPage() {
 
   if (auth.loading || loadingSettings) return null;
 
-  const hasChanges = reviewAheadMinutes !== savedMinutes;
+  const hasChanges =
+    reviewAheadMinutes !== savedMinutes ||
+    dailyNewCardLimit !== savedNewLimit ||
+    dailyReviewLimit !== savedReviewLimit;
 
   return (
     <>
@@ -105,6 +124,49 @@ function SettingsPage() {
                 onChange={(e) =>
                   setReviewAheadMinutes(
                     Math.max(0, Math.min(1440, Number(e.target.value) || 0)),
+                  )
+                }
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-label" htmlFor="daily-new-limit">
+                Daily new card limit
+              </label>
+              <p className="settings-field-help">
+                Maximum number of new cards you can study per deck per day.
+              </p>
+              <input
+                id="daily-new-limit"
+                className="settings-input"
+                type="number"
+                min={0}
+                max={9999}
+                value={dailyNewCardLimit}
+                onChange={(e) =>
+                  setDailyNewCardLimit(
+                    Math.max(0, Math.min(9999, Number(e.target.value) || 0)),
+                  )
+                }
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-label" htmlFor="daily-review-limit">
+                Daily review limit
+              </label>
+              <p className="settings-field-help">
+                Maximum number of review cards you can study per deck per day.
+                Learning cards are always shown.
+              </p>
+              <input
+                id="daily-review-limit"
+                className="settings-input"
+                type="number"
+                min={0}
+                max={9999}
+                value={dailyReviewLimit}
+                onChange={(e) =>
+                  setDailyReviewLimit(
+                    Math.max(0, Math.min(9999, Number(e.target.value) || 0)),
                   )
                 }
               />
