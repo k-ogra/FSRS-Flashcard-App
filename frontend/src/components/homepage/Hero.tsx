@@ -21,7 +21,7 @@ function Hero() {
         </p>
         <div className="hero-actions">
           {isAuthenticated ? (
-            <Link to="/decks" className="btn btn-primary">
+            <Link to="/my-decks" className="btn btn-primary">
               Go to My Decks
             </Link>
           ) : (

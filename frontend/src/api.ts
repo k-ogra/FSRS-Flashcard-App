@@ -297,7 +297,6 @@ export async function toggleDeckVisibility(
       .catch(() => ({ message: "Failed to update visibility" }));
     throw new ApiError(data.message, res.status);
   }
-  console.log("TOGGLING");
   return res.json();
 }
 
