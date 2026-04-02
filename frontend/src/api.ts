@@ -200,6 +200,17 @@ export async function deleteAccount(): Promise<void> {
   }
 }
 
+export async function getDeck(id: number): Promise<Deck> {
+  const res = await fetch(`${API_ROOT}/decks/${id}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ message: "Failed to load deck" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
 export async function getDecks(): Promise<Deck[]> {
   const res = await fetch(`${API_ROOT}/decks`, {
     credentials: "include",

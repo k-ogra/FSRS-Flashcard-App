@@ -215,6 +215,12 @@ export default function DecksPage() {
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/decks/${deck.id}/preview`)}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
                     onClick={() =>
                       setShareDeckTarget({ id: deck.id, name: deck.name })
                     }

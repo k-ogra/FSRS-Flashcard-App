@@ -144,14 +144,22 @@ export default function PublicDecksPage() {
                   {deck.flashcardCount !== 1 ? "s" : ""}
                 </p>
                 <p className="deck-card-owner">by {deck.ownerUsername}</p>
-                {deck.ownerUsername !== auth.username && (
+                <div className="deck-card-actions">
                   <button
-                    className="copy-deck-btn"
-                    onClick={() => openCopyModal(deck)}
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/decks/${deck.id}/preview`)}
                   >
-                    + Add to My Decks
+                    Preview
                   </button>
-                )}
+                  {deck.ownerUsername !== auth.username && (
+                    <button
+                      className="copy-deck-btn"
+                      onClick={() => openCopyModal(deck)}
+                    >
+                      + Add to My Decks
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

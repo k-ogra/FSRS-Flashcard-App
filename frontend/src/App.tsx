@@ -8,6 +8,7 @@ import SharedDecksPage from "./components/decks/SharedDecksPage";
 import PublicDecksPage from "./components/decks/PublicDecksPage";
 import StudyPage from "./components/study/StudyPage";
 import SettingsPage from "./components/settings/SettingsPage";
+import PreviewPage from "./components/preview/PreviewPage";
 import NotFoundPage from "./components/notfound/NotFoundPage";
 import "./App.css";
 
@@ -21,6 +22,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/my-decks" element={<DecksPage />} />
         <Route path="/my-decks/:id/study" element={<StudyPage />} />
+        <Route path="/decks/:id/preview" element={<PreviewPage />} />
         <Route path="/shared-decks" element={<SharedDecksPage />} />
         <Route path="/public-decks" element={<PublicDecksPage />} />
         <Route path="/settings" element={<SettingsPage />} />

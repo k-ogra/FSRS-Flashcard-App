@@ -146,12 +146,20 @@ export default function SharedDecksPage() {
                 <p className="deck-card-owner">
                   Shared by {deck.sharedByUsername}
                 </p>
-                <button
-                  className="copy-deck-btn"
-                  onClick={() => openCopyModal(deck)}
-                >
-                  + Add to My Decks
-                </button>
+                <div className="deck-card-actions">
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/decks/${deck.id}/preview`)}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    className="copy-deck-btn"
+                    onClick={() => openCopyModal(deck)}
+                  >
+                    + Add to My Decks
+                  </button>
+                </div>
               </div>
             ))}
           </div>
