@@ -3,10 +3,18 @@ package com.kogura.FSRS_Flashcard_App.controller;
 import com.kogura.FSRS_Flashcard_App.dto.AuthResponse;
 import com.kogura.FSRS_Flashcard_App.dto.LoginRequest;
 import com.kogura.FSRS_Flashcard_App.dto.SignupRequest;
+import com.kogura.FSRS_Flashcard_App.dto.UserSettingsDTO;
 import com.kogura.FSRS_Flashcard_App.model.User;
+import com.kogura.FSRS_Flashcard_App.model.UserSettings;
+import com.kogura.FSRS_Flashcard_App.repository.DailyStudyProgressRepository;
+import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
+import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import com.kogura.FSRS_Flashcard_App.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -16,13 +24,45 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controller for the authentication endpoints.
+ */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v0/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
+    /**
+     * The authentication service.
+     */
     private final AuthService authService;
+    /**
+     * The user repository.
+     */
+    private final UserRepository userRepository;
+    /**
+     * The deck repository.
+     */
+    private final DeckRepository deckRepository;
+    /**
+     * The shared deck repository.
+     */
+    private final SharedDeckRepository sharedDeckRepository;
+    /**
+     * The user settings repository.
+     */
+    private final UserSettingsRepository userSettingsRepository;
+    /**
+     * The daily study progress repository.
+     */
+    private final DailyStudyProgressRepository dailyStudyProgressRepository;
 
+    /**
+     * Sign up a new user.
+     * @param request The signup request.
+     * @param httpRequest The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request,
                                                HttpServletRequest httpRequest) {
@@ -51,6 +91,12 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Signup successful", user.getUsername()));
     }
 
+    /**
+     * Log in a user.
+     * @param request The login request.
+     * @param httpRequest The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request,
                                               HttpServletRequest httpRequest) {
@@ -68,6 +114,11 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Login successful", request.getUsername()));
     }
 
+    /**
+     * Log out a user.
+     * @param request The HTTP request.
+     * @return The authentication response.
+     */
     @PostMapping("/logout")
     public ResponseEntity<AuthResponse> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
@@ -78,6 +129,11 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Logged out successfully", null));
     }
 
+    /**
+     * Get the CSRF token.
+     * @param csrfToken The CSRF token.
+     * @return The authentication response.
+     */
     @GetMapping("/csrf")
     public ResponseEntity<AuthResponse> csrf(CsrfToken csrfToken) {
         // Force the token to be generated and the cookie to be set
@@ -85,13 +141,114 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("CSRF token set", null));
     }
 
-    @PostMapping("/test")
-    public ResponseEntity<AuthResponse> test() {
+    /**
+     * Delete a user's account.
+     * @param request The HTTP request.
+     * @return The authentication response.
+     */
+    @DeleteMapping("/account")
+    @Transactional
+    public ResponseEntity<AuthResponse> deleteAccount(HttpServletRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).body(new AuthResponse("Not authenticated", null));
+            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
+        }
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Remove daily study progress and user settings
+        dailyStudyProgressRepository.deleteByUser(user);
+        userSettingsRepository.deleteByUser(user);
+
+        // Remove shared deck records where user is recipient or sharer
+        sharedDeckRepository.deleteByUser(user);
+        sharedDeckRepository.deleteBySharer(user);
+
+        // Remove all decks owned by the user (cascades to flashcards)
+        deckRepository.deleteAll(deckRepository.findByUser(user));
+
+        // Delete the user
+        userRepository.delete(user);
+
+        // Invalidate session
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.ok(new AuthResponse("Account deleted successfully", null));
+    }
+
+    /**
+     * Check if the user is authenticated.
+     * @return The authentication response if the user is authenticated, otherwise return an unauthorized response.
+     */
+    @GetMapping("/authenticated")
+    public ResponseEntity<AuthResponse> authenticated() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
         }
         return ResponseEntity.ok(new AuthResponse("Authenticated", authentication.getName()));
+    }
+
+    /**
+     * Get the user settings.
+     * @return The user settings.
+     */
+    @GetMapping("/settings")
+    public ResponseEntity<UserSettingsDTO> getSettings() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).build();
+        }
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserSettings settings = userSettingsRepository.findByUser(user)
+                .orElseGet(() -> {
+                    UserSettings s = new UserSettings();
+                    s.setUser(user);
+                    return userSettingsRepository.save(s);
+                });
+        return ResponseEntity.ok(new UserSettingsDTO(
+                settings.getReviewAheadMinutes(),
+                settings.getDailyNewCardLimit(),
+                settings.getDailyReviewLimit()));
+    }
+
+    /**
+     * Update the user settings.
+     * @param request The user settings request.
+     * @return The updated user settings.
+     */
+    @PutMapping("/settings")
+    public ResponseEntity<UserSettingsDTO> updateSettings(@RequestBody UserSettingsDTO request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).build();
+        }
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserSettings settings = userSettingsRepository.findByUser(user)
+                .orElseGet(() -> {
+                    UserSettings s = new UserSettings();
+                    s.setUser(user);
+                    return s;
+                });
+        settings.setReviewAheadMinutes(Math.max(0, request.getReviewAheadMinutes()));
+        settings.setDailyNewCardLimit(Math.max(0, request.getDailyNewCardLimit()));
+        settings.setDailyReviewLimit(Math.max(0, request.getDailyReviewLimit()));
+        userSettingsRepository.save(settings);
+        return ResponseEntity.ok(new UserSettingsDTO(
+                settings.getReviewAheadMinutes(),
+                settings.getDailyNewCardLimit(),
+                settings.getDailyReviewLimit()));
     }
 }

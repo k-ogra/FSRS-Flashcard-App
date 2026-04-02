@@ -23,11 +23,21 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+/*
+ * Configuration for the security of the application.
+ * Includes CSRF protection, session management, and authentication.
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    /*
+     * Create a security filter chain.
+     * @param http The HTTP security configuration.
+     * @return The security filter chain.
+     * @throws Exception If the security filter chain cannot be created.
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -40,7 +50,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Allow these endpoints to be used without session cookies
-                        .requestMatchers("/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/csrf").permitAll()
+                        .requestMatchers("/api/v0/auth/signup", "/api/v0/auth/login", "/api/v0/auth/csrf").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -51,7 +61,7 @@ public class SecurityConfig {
                 )
                 // Disable Session Creation on Unauthorized Requests 
                 .requestCache(cache -> cache
-                        .requestCache(new NullRequestCache())
+                    .requestCache(new NullRequestCache())
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -65,6 +75,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /*
+     * Create a security context repository.
+     * This repository is used to store the security context in the session.
+     * @return The security context repository.
+     */
     @Bean
     public SecurityContextRepository securityContextRepository() {
         HttpSessionSecurityContextRepository repo = new HttpSessionSecurityContextRepository();
@@ -72,22 +87,38 @@ public class SecurityConfig {
         return repo;
     }
 
+    /*
+     * Create a password encoder.
+     * This encoder is used to encode the password of the user.
+     * @return The password encoder.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /*
+     * Create an authentication manager.
+     * @param config The authentication configuration.
+     * @return The authentication manager.
+     * @throws Exception If the authentication manager cannot be created.
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+  /*
+  * Create a CORS configuration source.
+  * This source is used to configure the CORS of the application.
+  * @return The CORS configuration source.
+  */
   @Bean
-  public UrlBasedCorsConfigurationSource  corsConfigurationSource() {
+  public UrlBasedCorsConfigurationSource corsConfigurationSource() {
       CorsConfiguration config = new CorsConfiguration();
       // TOOD: Change to use actual frontend source 
       config.setAllowedOrigins(List.of("http://localhost:5173"));
-      config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+      config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
       config.setAllowedHeaders(List.of("*"));
       config.setAllowCredentials(true);
 

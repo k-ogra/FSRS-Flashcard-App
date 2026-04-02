@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { login, ApiError } from "../api";
+import { Link, useNavigate } from "react-router-dom";
+import { login, ApiError } from "../../api";
+import { useAuth } from "../context/useAuth";
 import "./SignupLoginPage.css";
 
-export default function LogInPage() {
+export default function LoginPage() {
+  const auth = useAuth();
+  const navigate = useNavigate();
   const [formState, setFormState] = useState({
     username: "",
     password: "",
@@ -15,13 +18,14 @@ export default function LogInPage() {
     setFormState((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
       const res = await login(formState.username, formState.password);
-      console.log("Logged in as", res.username);
+      auth.loginSuccess(res.username!);
+      navigate("/my-decks");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -47,7 +51,9 @@ export default function LogInPage() {
 
           <form className="signup-form" onSubmit={handleSubmit} noValidate>
             <div className="form-field">
-              <label className="form-label" htmlFor="login-username">Username</label>
+              <label className="form-label" htmlFor="login-username">
+                Username
+              </label>
               <input
                 id="login-username"
                 name="username"
@@ -62,7 +68,9 @@ export default function LogInPage() {
             </div>
 
             <div className="form-field">
-              <label className="form-label" htmlFor="login-password">Password</label>
+              <label className="form-label" htmlFor="login-password">
+                Password
+              </label>
               <input
                 id="login-password"
                 name="password"
@@ -78,7 +86,11 @@ export default function LogInPage() {
 
             {error && <div className="form-error">{error}</div>}
 
-            <button type="submit" className="btn btn-primary signup-submit" disabled={loading}>
+            <button
+              type="submit"
+              className="btn btn-primary signup-submit"
+              disabled={loading}
+            >
               {loading ? "Logging in..." : "Log in"}
             </button>
           </form>

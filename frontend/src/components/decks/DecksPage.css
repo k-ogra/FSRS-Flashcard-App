@@ -1,0 +1,350 @@
+/* ============================================================
+   Decks Page — Matches App.css design tokens
+   ============================================================ */
+
+.decks-page {
+  min-height: calc(100vh - 60px);
+  padding: 64px 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45, 212, 191, 0.05) 0%, transparent 70%);
+}
+
+.decks-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.decks-header {
+  margin-bottom: 48px;
+}
+
+.decks-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.decks-heading {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.decks-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ── Deck Grid ────────────────────────────────────────────── */
+.decks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.deck-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+.deck-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--amber-dim);
+  box-shadow: var(--shadow-amber);
+}
+.deck-card:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.deck-card-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.deck-card-count {
+  font-size: 14px;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.deck-card-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.deck-card-owner {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.deck-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.deck-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.deck-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.deck-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-stat--new .deck-stat-value { color: #3b82f6; }
+.deck-stat--new .deck-stat-label { color: #60a5fa; }
+
+.deck-stat--learn .deck-stat-value { color: #f59e0b; }
+.deck-stat--learn .deck-stat-label { color: #fbbf24; }
+
+.deck-stat--due .deck-stat-value { color: #10b981; }
+.deck-stat--due .deck-stat-label { color: #34d399; }
+
+.deck-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-dim);
+}
+
+.visibility-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.visibility-badge:hover {
+  border-color: var(--amber-dim);
+  color: var(--text-secondary);
+}
+.visibility-badge:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.visibility-badge--public {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: rgba(45, 212, 191, 0.25);
+  color: var(--amber);
+}
+.visibility-badge--public:hover {
+  background: rgba(45, 212, 191, 0.15);
+}
+
+.form-success {
+  color: var(--amber);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+button.deck-delete-btn {
+  margin-left: auto;
+  color: #f87171 !important;
+}
+button.deck-delete-btn:hover {
+  color: #ef4444 !important;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/* ── Copy Deck Button ────────────────────────────────────── */
+.copy-deck-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--amber-dim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.copy-deck-btn:hover {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: var(--amber);
+}
+.copy-deck-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.copy-deck-btn:active {
+  background: rgba(45, 212, 191, 0.15);
+}
+
+/* ── Empty State ──────────────────────────────────────────── */
+.decks-empty {
+  text-align: center;
+  padding: 80px 20px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.decks-empty-icon {
+  font-size: 32px;
+  color: var(--amber);
+  margin-bottom: 16px;
+}
+
+.decks-empty-heading {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.decks-empty-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.decks-empty-cta {
+  margin-top: 24px;
+}
+
+/* ── Loading / Error ──────────────────────────────────────── */
+.decks-loading,
+.decks-error {
+  text-align: center;
+  padding: 96px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+/* ── Create Deck Modal ─────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(45, 212, 191, 0.04) inset;
+}
+
+.modal-heading {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+/* ── Toggle Switch ────────────────────────────────────────── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.toggle-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.toggle-track--on {
+  background: var(--amber);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transform: translateX(0);
+}
+.toggle-track--on .toggle-thumb {
+  transform: translateX(18px);
+  background: #0d0d0f;
+}
+
+.toggle-hidden:focus-visible + .toggle-row .toggle-track,
+.toggle-row:has(.toggle-hidden:focus-visible) .toggle-track {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .decks-inner {
+    padding: 0 20px;
+  }
+  .decks-grid {
+    grid-template-columns: 1fr;
+  }
+}
