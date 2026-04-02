@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
@@ -49,11 +50,18 @@ public class StudyService {
     LocalDate today = LocalDate.now();
     DailyStudyProgress progress = dailyStudyProgressRepository.findByUserAndDeck(user, deck)
         .orElseGet(() -> {
-          DailyStudyProgress p = new DailyStudyProgress();
-          p.setUser(user);
-          p.setDeck(deck);
-          p.setStudyDate(today);
-          return dailyStudyProgressRepository.save(p);
+          try {
+            DailyStudyProgress p = new DailyStudyProgress();
+            p.setUser(user);
+            p.setDeck(deck);
+            p.setStudyDate(today);
+            return dailyStudyProgressRepository.save(p);
+          } catch (DataIntegrityViolationException e) {
+            // TODO: Might be a better way to organize the DB calls to avoid this race condition
+            // Another concurrent request already inserted the row, return it 
+            return dailyStudyProgressRepository.findByUserAndDeck(user, deck)
+                .orElseThrow(() -> new RuntimeException("Failed to create daily study progress"));
+          }
         });
     if (progress.getStudyDate().isBefore(today)) {
       progress.setStudyDate(today);
