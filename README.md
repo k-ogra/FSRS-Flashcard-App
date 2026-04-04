@@ -24,6 +24,9 @@ TODO
 
 - React
 - Spring Boot
+- Postgres
+- AWS S3 for media storage
+- AWS SQS for processing upload events
 
 ## Getting Started
 
