@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getDeck, ApiError } from "../../api";
 import { useAuth } from "../context/useAuth";
 import type { Deck } from "../../api";
+import MediaRenderer from "../shared/MediaRenderer";
 import "./PreviewPage.css";
 
 export default function PreviewPage() {
@@ -100,8 +101,10 @@ export default function PreviewPage() {
               <div key={card.id} className="preview-card">
                 <div className="preview-card-number">Card {index + 1}</div>
                 <div className="preview-card-question">{card.question}</div>
+                <MediaRenderer url={card.questionMediaMetadata?.presignedDownloadUrl} fileName={card.questionMediaMetadata?.name} />
                 <div className="preview-card-divider" />
                 <div className="preview-card-answer">{card.answer}</div>
+                <MediaRenderer url={card.answerMediaMetadata?.presignedDownloadUrl} fileName={card.answerMediaMetadata?.name} />
               </div>
             ))}
           </div>

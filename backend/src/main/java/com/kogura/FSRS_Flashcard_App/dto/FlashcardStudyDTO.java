@@ -19,4 +19,9 @@ public class FlashcardStudyDTO {
   private Duration hardInterval;
   private Duration goodInterval;
   private Duration easyInterval;
+  // Media
+  private String questionMediaUrl;
+  private String questionMediaName;
+  private String answerMediaUrl;
+  private String answerMediaName;
 }

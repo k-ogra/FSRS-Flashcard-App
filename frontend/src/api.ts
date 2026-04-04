@@ -7,6 +7,12 @@ export interface AuthResponse {
   username: string | null;
 }
 
+export interface MediaMetadataDTO {
+  s3Key: string | null;
+  name: string | null;
+  presignedDownloadUrl: string | null;
+}
+
 export interface Deck {
   id: number;
   name: string;
@@ -23,6 +29,8 @@ export interface Deck {
     step: number | null;
     dueDate: string | null;
     lastReview: string | null;
+    questionMediaMetadata: MediaMetadataDTO | null;
+    answerMediaMetadata: MediaMetadataDTO | null;
   }[];
 }
 
@@ -38,6 +46,10 @@ export interface FlashcardStudy {
   hardInterval: string;
   goodInterval: string;
   easyInterval: string;
+  questionMediaUrl: string | null;
+  questionMediaName: string | null;
+  answerMediaUrl: string | null;
+  answerMediaName: string | null;
 }
 
 export interface DeckStats {
@@ -457,11 +469,17 @@ export async function copyDeck(
   return res.json();
 }
 
+export interface CreatedFlashcard {
+  id: number;
+  question: string;
+  answer: string;
+}
+
 export async function createFlashcard(
   deckId: number,
   question: string,
   answer: string,
-): Promise<void> {
+): Promise<CreatedFlashcard> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/flashcards`, {
     method: "POST",
@@ -477,5 +495,46 @@ export async function createFlashcard(
       .json()
       .catch(() => ({ message: "Failed to create flashcard" }));
     throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getPresignedUploadUrl(
+  flashcardId: number,
+  fileName: string,
+  isQuestion: boolean,
+): Promise<string> {
+  const params = new URLSearchParams({
+    flashcardId: String(flashcardId),
+    fileName,
+    isQuestion: String(isQuestion),
+  });
+  const res = await fetch(`${API_ROOT}/s3/presigned-upload?${params}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new ApiError("Failed to get upload URL", res.status);
+  }
+  return res.text();
+}
+
+export async function uploadFileToS3(
+  presignedUrl: string,
+  file: File,
+  flashcardId: number,
+  isQuestion: boolean,
+): Promise<void> {
+  const res = await fetch(presignedUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "x-amz-meta-flashcardid": String(flashcardId),
+      "x-amz-meta-filename": file.name,
+      "x-amz-meta-isquestion": isQuestion ? "true" : "false",
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new Error("Failed to upload file to S3");
   }
 }

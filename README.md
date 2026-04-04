@@ -10,7 +10,7 @@ Uses spaced repetition to predict when you'll forget a card and schedules review
 
 ### Media Integrated Cards
 
-Create media integrated cards with images, audio, or video.
+Create media integrated cards with images or audio.
 
 ### Shareable Decks
 

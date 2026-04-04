@@ -14,6 +14,7 @@ import com.kogura.FSRS_Flashcard_App.dto.FlashcardStudyDTO;
 import com.kogura.FSRS_Flashcard_App.model.DailyStudyProgress;
 import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
+import com.kogura.FSRS_Flashcard_App.model.MediaMetadata;
 import com.kogura.FSRS_Flashcard_App.model.User;
 import com.kogura.FSRS_Flashcard_App.repository.DailyStudyProgressRepository;
 import com.kogura.FSRS_Flashcard_App.repository.FlashcardRepository;
@@ -30,12 +31,15 @@ public class StudyService {
   private final FlashcardRepository flashcardRepository;
   private final DailyStudyProgressRepository dailyStudyProgressRepository;
   private final Scheduler scheduler;
+  private final MediaMetadataService mediaMetadataService;
 
   public StudyService(FlashcardRepository flashcardRepository,
-      DailyStudyProgressRepository dailyStudyProgressRepository, Scheduler scheduler) {
+      DailyStudyProgressRepository dailyStudyProgressRepository, Scheduler scheduler,
+      MediaMetadataService mediaMetadataService) {
     this.flashcardRepository = flashcardRepository;
     this.dailyStudyProgressRepository = dailyStudyProgressRepository;
     this.scheduler = scheduler;
+    this.mediaMetadataService = mediaMetadataService;
   }
 
   /**
@@ -102,8 +106,28 @@ public class StudyService {
     CardAndReviewLog easy = this.scheduler.reviewCard(fsrsCard, Rating.EASY);
     Duration easyInterval = Duration.between(easy.card().getLastReview(), easy.card().getDue());
 
+    String questionMediaUrl = null;
+    String questionMediaName = null;
+    String answerMediaUrl = null;
+    String answerMediaName = null;
+
+    MediaMetadata qMeta = card.getQuestionMediaMetadata();
+    if (qMeta != null && qMeta.getS3Key() != null) {
+      qMeta = mediaMetadataService.refreshDownloadUrlIfNeeded(qMeta);
+      questionMediaUrl = qMeta.getPresignedDownloadUrl();
+      questionMediaName = qMeta.getName();
+    }
+
+    MediaMetadata aMeta = card.getAnswerMediaMetadata();
+    if (aMeta != null && aMeta.getS3Key() != null) {
+      aMeta = mediaMetadataService.refreshDownloadUrlIfNeeded(aMeta);
+      answerMediaUrl = aMeta.getPresignedDownloadUrl();
+      answerMediaName = aMeta.getName();
+    }
+
     return new FlashcardStudyDTO(card.getId(), card.getQuestion(), card.getAnswer(),
-        stateLabel(card), card.getDueDate(), againInterval, hardInterval, goodInterval, easyInterval);
+        stateLabel(card), card.getDueDate(), againInterval, hardInterval, goodInterval, easyInterval,
+        questionMediaUrl, questionMediaName, answerMediaUrl, answerMediaName);
   }
 
   public List<FlashcardStudyDTO> getNewQueue(Long deckId, User user, Deck deck, int dailyNewCardLimit) {

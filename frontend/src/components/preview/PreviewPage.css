@@ -102,6 +102,23 @@
   line-height: 1.7;
 }
 
+/* ── Media Content ───────────────────────────────────────── */
+.media-content {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.media-image {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  display: block;
+}
+
+.media-audio {
+  width: 100%;
+  display: block;
+}
+
 /* ── Empty State ─────────────────────────────────────────── */
 .preview-empty {
   text-align: center;
