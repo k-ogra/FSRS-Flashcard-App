@@ -386,6 +386,26 @@
   color: #f87171;
 }
 
+.study-add-file-preview {
+  margin-top: -4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.study-add-file-preview .media-content {
+  margin: 0;
+  max-width: 100%;
+}
+.study-add-file-preview .media-image {
+  max-height: 140px;
+  border-radius: 4px;
+  display: block;
+}
+.study-add-file-preview .media-audio {
+  width: 100%;
+}
+
 /* ── Media Content ───────────────────────────────────────── */
 .media-content {
   margin-top: 12px;

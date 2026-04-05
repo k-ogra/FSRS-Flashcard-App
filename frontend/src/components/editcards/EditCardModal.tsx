@@ -29,8 +29,31 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
   const [aMediaAction, setAMediaAction] = useState<MediaAction>("keep");
   const [newQFile, setNewQFile] = useState<File | null>(null);
   const [newAFile, setNewAFile] = useState<File | null>(null);
+  const [newQPreviewUrl, setNewQPreviewUrl] = useState<string | null>(null);
+  const [newAPreviewUrl, setNewAPreviewUrl] = useState<string | null>(null);
 
   const questionRef = useRef<HTMLInputElement>(null);
+
+  // Create/revoke object URLs for local file previews
+  useEffect(() => {
+    if (!newQFile) {
+      setNewQPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(newQFile);
+    setNewQPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [newQFile]);
+
+  useEffect(() => {
+    if (!newAFile) {
+      setNewAPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(newAFile);
+    setNewAPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [newAFile]);
 
   // Focus question input on mount
   useEffect(() => {
@@ -164,6 +187,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
     meta: FlashcardData["questionMediaMetadata"],
     action: MediaAction,
     newFile: File | null,
+    previewUrl: string | null,
   ) {
     const hasExisting = meta != null && meta.presignedDownloadUrl != null;
 
@@ -184,12 +208,20 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
 
         {/* Pending replacement/addition */}
         {(action === "replace" || action === "add") && newFile && (
-          <div className="media-manage-pending">
-            <span className="media-manage-pending-name">
-              {action === "replace" ? "Replace with: " : "Add: "}
-              {newFile.name}
-            </span>
-          </div>
+          <>
+            {previewUrl && (
+              <div className="media-manage-current">
+                <MediaRenderer url={previewUrl} fileName={newFile.name} />
+                <span className="media-manage-filename">{newFile.name}</span>
+              </div>
+            )}
+            <div className="media-manage-pending">
+              <span className="media-manage-pending-name">
+                {action === "replace" ? "Replace with: " : "Add: "}
+                {newFile.name}
+              </span>
+            </div>
+          </>
         )}
 
         {/* Action buttons */}
@@ -261,7 +293,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
               onChange={(e) => setQuestion(e.target.value)}
               disabled={saving}
             />
-            {renderMediaSection("question", card.questionMediaMetadata, qMediaAction, newQFile)}
+            {renderMediaSection("question", card.questionMediaMetadata, qMediaAction, newQFile, newQPreviewUrl)}
           </div>
 
           {/* Answer Section */}
@@ -274,7 +306,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
               onChange={(e) => setAnswer(e.target.value)}
               disabled={saving}
             />
-            {renderMediaSection("answer", card.answerMediaMetadata, aMediaAction, newAFile)}
+            {renderMediaSection("answer", card.answerMediaMetadata, aMediaAction, newAFile, newAPreviewUrl)}
           </div>
 
           {error && <div className="form-error">{error}</div>}

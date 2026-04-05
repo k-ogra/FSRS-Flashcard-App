@@ -70,7 +70,32 @@ export default function StudyPage() {
   const [adding, setAdding] = useState(false);
   const [questionFile, setQuestionFile] = useState<File | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const [questionFilePreviewUrl, setQuestionFilePreviewUrl] = useState<string | null>(null);
+  const [answerFilePreviewUrl, setAnswerFilePreviewUrl] = useState<string | null>(null);
   const questionRef = useRef<HTMLInputElement>(null);
+  const questionFileInputRef = useRef<HTMLInputElement>(null);
+  const answerFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Create/revoke object URLs for local file previews
+  useEffect(() => {
+    if (!questionFile) {
+      setQuestionFilePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(questionFile);
+    setQuestionFilePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [questionFile]);
+
+  useEffect(() => {
+    if (!answerFile) {
+      setAnswerFilePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(answerFile);
+    setAnswerFilePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [answerFile]);
 
   async function fetchSession() {
     setLoading(true);
@@ -315,6 +340,7 @@ export default function StudyPage() {
                 <label className="study-add-file-label">
                   {questionFile ? questionFile.name : "Attach image/audio to question"}
                   <input
+                    ref={questionFileInputRef}
                     type="file"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
@@ -335,11 +361,16 @@ export default function StudyPage() {
                   />
                 </label>
                 {questionFile && (
-                  <button type="button" className="study-add-file-clear" onClick={() => setQuestionFile(null)} disabled={adding}>
+                  <button type="button" className="study-add-file-clear" onClick={() => { setQuestionFile(null); if (questionFileInputRef.current) questionFileInputRef.current.value = ""; }} disabled={adding}>
                     &times;
                   </button>
                 )}
               </div>
+              {questionFile && questionFilePreviewUrl && (
+                <div className="study-add-file-preview">
+                  <MediaRenderer url={questionFilePreviewUrl} fileName={questionFile.name} />
+                </div>
+              )}
               <input
                 className="study-add-input"
                 type="text"
@@ -352,6 +383,7 @@ export default function StudyPage() {
                 <label className="study-add-file-label">
                   {answerFile ? answerFile.name : "Attach image/audio to answer"}
                   <input
+                    ref={answerFileInputRef}
                     type="file"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
@@ -372,11 +404,16 @@ export default function StudyPage() {
                   />
                 </label>
                 {answerFile && (
-                  <button type="button" className="study-add-file-clear" onClick={() => setAnswerFile(null)} disabled={adding}>
+                  <button type="button" className="study-add-file-clear" onClick={() => { setAnswerFile(null); if (answerFileInputRef.current) answerFileInputRef.current.value = ""; }} disabled={adding}>
                     &times;
                   </button>
                 )}
               </div>
+              {answerFile && answerFilePreviewUrl && (
+                <div className="study-add-file-preview">
+                  <MediaRenderer url={answerFilePreviewUrl} fileName={answerFile.name} />
+                </div>
+              )}
             </div>
             {addError && (
               <div className="form-error" style={{ marginTop: 8 }}>
