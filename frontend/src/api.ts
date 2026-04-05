@@ -499,11 +499,49 @@ export async function createFlashcard(
   return res.json();
 }
 
-export async function getPresignedUploadUrl(
+// --- File upload validation ---
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
+
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+};
+
+export function validateMediaFile(file: File): string | null {
+  if (file.size > MAX_FILE_SIZE) {
+    return "File size exceeds 10MB limit.";
+  }
+  const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+  if (
+    !ALLOWED_IMAGE_EXTENSIONS.includes(ext) &&
+    !ALLOWED_AUDIO_EXTENSIONS.includes(ext)
+  ) {
+    return "Only image (.jpg, .png, .gif, .webp) and audio (.mp3, .wav, .ogg) files are allowed.";
+  }
+  return null;
+}
+
+// --- Presigned POST upload ---
+
+export interface PresignedPostData {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export async function getPresignedUploadData(
   flashcardId: number,
   fileName: string,
   isQuestion: boolean,
-): Promise<string> {
+): Promise<PresignedPostData> {
   const params = new URLSearchParams({
     flashcardId: String(flashcardId),
     fileName,
@@ -513,26 +551,33 @@ export async function getPresignedUploadUrl(
     credentials: "include",
   });
   if (!res.ok) {
-    throw new ApiError("Failed to get upload URL", res.status);
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to get upload URL" }));
+    throw new ApiError(data.message, res.status);
   }
-  return res.text();
+  return res.json();
 }
 
 export async function uploadFileToS3(
-  presignedUrl: string,
+  presignedPost: PresignedPostData,
   file: File,
-  flashcardId: number,
-  isQuestion: boolean,
 ): Promise<void> {
-  const res = await fetch(presignedUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type || "application/octet-stream",
-      "x-amz-meta-flashcardid": String(flashcardId),
-      "x-amz-meta-filename": file.name,
-      "x-amz-meta-isquestion": isQuestion ? "true" : "false",
-    },
-    body: file,
+  const formData = new FormData();
+  // Add all presigned fields first
+  for (const [key, value] of Object.entries(presignedPost.fields)) {
+    formData.append(key, value);
+  }
+  // Override Content-Type with the actual file MIME type
+  const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+  const mimeType = file.type || EXTENSION_MIME_MAP[ext] || "application/octet-stream";
+  formData.set("Content-Type", mimeType);
+  // File MUST be appended last — S3 requirement
+  formData.append("file", file);
+
+  const res = await fetch(presignedPost.url, {
+    method: "POST",
+    body: formData,
   });
   if (!res.ok) {
     throw new Error("Failed to upload file to S3");

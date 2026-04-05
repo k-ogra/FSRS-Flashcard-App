@@ -6,8 +6,9 @@ import {
   getReviewQueue,
   submitReview,
   createFlashcard,
-  getPresignedUploadUrl,
+  getPresignedUploadData,
   uploadFileToS3,
+  validateMediaFile,
   getUserSettings,
   ApiError,
 } from "../../api";
@@ -193,14 +194,14 @@ export default function StudyPage() {
       const uploads: Promise<void>[] = [];
       if (questionFile) {
         uploads.push(
-          getPresignedUploadUrl(created.id, questionFile.name, true)
-            .then((url) => uploadFileToS3(url, questionFile, created.id, true)),
+          getPresignedUploadData(created.id, questionFile.name, true)
+            .then((postData) => uploadFileToS3(postData, questionFile)),
         );
       }
       if (answerFile) {
         uploads.push(
-          getPresignedUploadUrl(created.id, answerFile.name, false)
-            .then((url) => uploadFileToS3(url, answerFile, created.id, false)),
+          getPresignedUploadData(created.id, answerFile.name, false)
+            .then((postData) => uploadFileToS3(postData, answerFile)),
         );
       }
       if (uploads.length > 0) {
@@ -315,9 +316,21 @@ export default function StudyPage() {
                   {questionFile ? questionFile.name : "Attach image/audio to question"}
                   <input
                     type="file"
-                    accept="image/*,audio/*"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
-                    onChange={(e) => setQuestionFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (file) {
+                        const error = validateMediaFile(file);
+                        if (error) {
+                          setAddError(error);
+                          e.target.value = "";
+                          return;
+                        }
+                        setAddError(null);
+                      }
+                      setQuestionFile(file);
+                    }}
                     disabled={adding}
                   />
                 </label>
@@ -340,9 +353,21 @@ export default function StudyPage() {
                   {answerFile ? answerFile.name : "Attach image/audio to answer"}
                   <input
                     type="file"
-                    accept="image/*,audio/*"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
-                    onChange={(e) => setAnswerFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (file) {
+                        const error = validateMediaFile(file);
+                        if (error) {
+                          setAddError(error);
+                          e.target.value = "";
+                          return;
+                        }
+                        setAddError(null);
+                      }
+                      setAnswerFile(file);
+                    }}
                     disabled={adding}
                   />
                 </label>
