@@ -9,6 +9,7 @@ import {
 } from "../../api";
 import type { Deck } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
+import "./EditCardsPage.css";
 
 type FlashcardData = Deck["flashcards"][0];
 type MediaAction = "keep" | "remove" | "replace" | "add";

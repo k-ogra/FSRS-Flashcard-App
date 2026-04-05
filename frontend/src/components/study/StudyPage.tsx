@@ -14,7 +14,9 @@ import {
 } from "../../api";
 import type { FlashcardStudy, Grade } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
+import EditCardModal from "../editcards/EditCardModal";
 import { useAuth } from "../context/useAuth";
+import type { Deck } from "../../api";
 import "./StudyPage.css";
 
 function insertSorted(
@@ -70,6 +72,7 @@ export default function StudyPage() {
   const [adding, setAdding] = useState(false);
   const [questionFile, setQuestionFile] = useState<File | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const [editingCard, setEditingCard] = useState<Deck["flashcards"][0] | null>(null);
   const [questionFilePreviewUrl, setQuestionFilePreviewUrl] = useState<string | null>(null);
   const [answerFilePreviewUrl, setAnswerFilePreviewUrl] = useState<string | null>(null);
   const questionRef = useRef<HTMLInputElement>(null);
@@ -257,6 +260,45 @@ export default function StudyPage() {
       setTimeout(() => questionRef.current?.focus(), 0);
     }
   }, [addFormOpen]);
+
+  // Convert a FlashcardStudy into the shape EditCardModal expects
+  function toEditCardData(card: FlashcardStudy): Deck["flashcards"][0] {
+    return {
+      id: card.id,
+      question: card.question,
+      answer: card.answer,
+      createdAt: "",
+      stability: null,
+      difficulty: null,
+      state: null,
+      step: null,
+      dueDate: null,
+      lastReview: null,
+      questionMediaMetadata: card.questionMediaUrl
+        ? { s3Key: null, name: card.questionMediaName, presignedDownloadUrl: card.questionMediaUrl }
+        : null,
+      answerMediaMetadata: card.answerMediaUrl
+        ? { s3Key: null, name: card.answerMediaName, presignedDownloadUrl: card.answerMediaUrl }
+        : null,
+    };
+  }
+
+  // Refresh queues after an edit without resetting session progress (studied count, completed state)
+  async function refreshQueuesAfterEdit() {
+    try {
+      const [newCards, learningCards, reviewCards] = await Promise.all([
+        getNewQueue(deckId),
+        getLearningQueue(deckId, reviewAheadMinutes),
+        getReviewQueue(deckId, reviewAheadMinutes),
+      ]);
+      setNewQueue(newCards);
+      setLearningQueue(learningCards);
+      setReviewQueue(reviewCards);
+      setShowAnswer(false);
+    } catch {
+      // fail silently — user can retry by rating the card
+    }
+  }
 
   if (auth.loading) return null;
 
@@ -479,7 +521,16 @@ export default function StudyPage() {
           </div>
         ) : currentCard ? (
           <div className="study-card">
-            <p className="study-progress">{remaining} cards left</p>
+            <div className="study-card-top">
+              <p className="study-progress">{remaining} cards left</p>
+              <button
+                type="button"
+                className="study-edit-btn"
+                onClick={() => setEditingCard(toEditCardData(currentCard))}
+              >
+                Edit Card
+              </button>
+            </div>
             <p className="study-question-text">{currentCard.question}</p>
             <MediaRenderer url={currentCard.questionMediaUrl} fileName={currentCard.questionMediaName} />
 
@@ -542,6 +593,17 @@ export default function StudyPage() {
           </div>
         ) : null}
       </div>
+
+      {editingCard && (
+        <EditCardModal
+          card={editingCard}
+          onClose={() => setEditingCard(null)}
+          onSaved={async () => {
+            setEditingCard(null);
+            await refreshQueuesAfterEdit();
+          }}
+        />
+      )}
     </div>
   );
 }

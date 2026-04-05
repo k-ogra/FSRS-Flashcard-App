@@ -100,6 +100,35 @@
   margin-bottom: 32px;
 }
 
+.study-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.study-card-top .study-progress {
+  margin-bottom: 0;
+}
+
+.study-edit-btn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.study-edit-btn:hover {
+  color: var(--amber);
+}
+.study-edit-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 .study-question-text {
   font-family: var(--font-display);
   font-size: clamp(20px, 3vw, 28px);
