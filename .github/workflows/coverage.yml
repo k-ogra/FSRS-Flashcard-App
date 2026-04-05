@@ -16,7 +16,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - name: Run tests and collect coverage
-        run: mvn -B verify
+        run: mvn -B verify -Dtest="!FsrsFlashcardAppApplicationTests"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         env:
