@@ -192,7 +192,7 @@ export default function DecksPage() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    className={`visibility-badge ${deck.isPublic ? "visibility-badge--public" : ""}`}
+                    className={`btn btn-ghost btn-sm deck-stack-btn visibility-toggle ${deck.isPublic ? "visibility-toggle--public" : ""}`}
                     onClick={async () => {
                       try {
                         const updated = await toggleDeckVisibility(
@@ -211,13 +211,15 @@ export default function DecksPage() {
                       }
                     }}
                   >
-                    {deck.isPublic ? "Make Private" : "Make Public"}
+                    <span>Make</span>
+                    <span>{deck.isPublic ? "Private" : "Public"}</span>
                   </button>
                   <button
-                    className="btn btn-ghost btn-sm"
+                    className="btn btn-ghost btn-sm deck-stack-btn"
                     onClick={() => navigate(`/decks/${deck.id}/edit`)}
                   >
-                    Edit Cards
+                    <span>Edit</span>
+                    <span>Cards</span>
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"

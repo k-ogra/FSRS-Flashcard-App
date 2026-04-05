@@ -127,41 +127,31 @@
 
 .deck-card-actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--border-dim);
 }
 
-.visibility-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--font-body);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  cursor: pointer;
+.deck-card-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
 }
-.visibility-badge:hover {
-  border-color: var(--amber-dim);
-  color: var(--text-secondary);
+
+.deck-stack-btn {
+  flex-direction: column;
+  line-height: 1.15;
+  gap: 0;
 }
-.visibility-badge:focus-visible {
-  outline: 2px solid var(--amber);
-  outline-offset: 2px;
+
+.visibility-toggle--public {
+  color: var(--amber) !important;
 }
-.visibility-badge--public {
-  background: rgba(45, 212, 191, 0.1);
-  border-color: rgba(45, 212, 191, 0.25);
-  color: var(--amber);
-}
-.visibility-badge--public:hover {
-  background: rgba(45, 212, 191, 0.15);
+.visibility-toggle--public:hover {
+  color: var(--amber-dim) !important;
 }
 
 .form-success {
