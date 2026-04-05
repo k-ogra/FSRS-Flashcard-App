@@ -18,8 +18,9 @@ import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.FlashcardRepository;
+import com.kogura.FSRS_Flashcard_App.service.S3Service;
 
-
+import jakarta.transaction.Transactional;
 import lombok.Data;
 
 @RestController
@@ -27,11 +28,13 @@ import lombok.Data;
 public class FlashcardController {
   private final FlashcardRepository flashcardRepository;
   private final DeckRepository deckRepository;
+  private final S3Service s3Service;
 
   @Autowired
-  public FlashcardController(FlashcardRepository flashcardRepository, DeckRepository deckRepository) {
+  public FlashcardController(FlashcardRepository flashcardRepository, DeckRepository deckRepository, S3Service s3Service) {
     this.flashcardRepository = flashcardRepository;
     this.deckRepository = deckRepository;
+    this.s3Service = s3Service;
   }
 
   @GetMapping
@@ -89,11 +92,17 @@ public class FlashcardController {
     return ResponseEntity.ok(updated);
   }
 
+  @Transactional
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteFlashcard(@PathVariable Long id) {
-    if (!flashcardRepository.existsById(id)) {
+    Optional<Flashcard> optionalFlashcard = flashcardRepository.findById(id);
+    if (optionalFlashcard.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
+
+    List<String> s3Keys = S3Service.collectS3Keys(List.of(optionalFlashcard.get()));
+    s3Service.deleteObjects(s3Keys);
+
     flashcardRepository.deleteById(id);
     return ResponseEntity.noContent().build();
   }

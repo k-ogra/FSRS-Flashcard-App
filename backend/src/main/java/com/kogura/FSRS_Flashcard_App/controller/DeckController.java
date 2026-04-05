@@ -185,8 +185,13 @@ public class DeckController {
     if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
       return ResponseEntity.notFound().build();
     }
-    dailyStudyProgressRepository.deleteByDeck(optionalDeck.get());
-    sharedDeckRepository.deleteByDeck(optionalDeck.get());
+    Deck deck = optionalDeck.get();
+
+    List<String> s3Keys = S3Service.collectS3Keys(deck.getFlashcards());
+    s3Service.deleteObjects(s3Keys);
+
+    dailyStudyProgressRepository.deleteByDeck(deck);
+    sharedDeckRepository.deleteByDeck(deck);
     deckRepository.deleteById(id);
     return ResponseEntity.noContent().build();
   }

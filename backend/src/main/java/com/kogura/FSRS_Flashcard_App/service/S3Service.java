@@ -6,8 +6,11 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -17,14 +20,19 @@ import org.springframework.stereotype.Service;
 
 import com.kogura.FSRS_Flashcard_App.config.S3Buckets;
 import com.kogura.FSRS_Flashcard_App.dto.PresignedPostResponse;
+import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
-import software.amazon.awssdk.services.s3.model.MetadataDirective;
+import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.MetadataDirective;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -166,6 +174,56 @@ public class S3Service {
     } catch (Exception e) {
       throw new RuntimeException("Failed to create presigned POST data", e);
     }
+  }
+
+
+  /**
+   *  Delete a list of S3 objects.
+   *  @param s3Keys The list of S3 keys to delete.
+   */
+  public void deleteObjects(List<String> s3Keys) {
+    if (s3Keys == null || s3Keys.isEmpty()) return;
+
+    int batchSize = 1000;
+    for (int i = 0; i < s3Keys.size(); i += batchSize) {
+      List<String> batch = s3Keys.subList(i, Math.min(i + batchSize, s3Keys.size()));
+
+      List<ObjectIdentifier> identifiers = batch.stream()
+          .map(key -> ObjectIdentifier.builder().key(key).build())
+          .toList();
+
+      DeleteObjectsRequest request = DeleteObjectsRequest.builder()
+          .bucket(s3Buckets.getBucketName())
+          .delete(Delete.builder().objects(identifiers).quiet(false).build())
+          .build();
+
+      DeleteObjectsResponse response = s3Client.deleteObjects(request);
+
+      if (response.hasErrors() && !response.errors().isEmpty()) {
+        String errorDetails = response.errors().stream()
+            .map(e -> e.key() + ": " + e.message())
+            .collect(Collectors.joining(", "));
+        throw new RuntimeException("Failed to delete S3 objects: " + errorDetails);
+      }
+    }
+  }
+
+  /**
+   *  Collect the S3 keys for a list of flashcards.
+   *  @param flashcards The list of flashcards.
+   *  @return The list of S3 keys.
+   */
+  public static List<String> collectS3Keys(List<Flashcard> flashcards) {
+    List<String> keys = new ArrayList<>();
+    for (Flashcard fc : flashcards) {
+      if (fc.getQuestionMediaMetadata() != null && fc.getQuestionMediaMetadata().getS3Key() != null) {
+        keys.add(fc.getQuestionMediaMetadata().getS3Key());
+      }
+      if (fc.getAnswerMediaMetadata() != null && fc.getAnswerMediaMetadata().getS3Key() != null) {
+        keys.add(fc.getAnswerMediaMetadata().getS3Key());
+      }
+    }
+    return keys;
   }
 
   private String escapeJson(String value) {
