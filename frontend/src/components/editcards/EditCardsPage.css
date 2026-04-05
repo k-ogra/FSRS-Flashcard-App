@@ -1,0 +1,282 @@
+/* ============================================================
+   Edit Cards Page — Based on PreviewPage design tokens
+   ============================================================ */
+
+.edit-cards-page {
+  min-height: calc(100vh - 60px);
+  padding: 64px 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45, 212, 191, 0.05) 0%, transparent 70%);
+}
+
+.edit-cards-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* -- Header ------------------------------------------------- */
+.edit-cards-header {
+  margin-bottom: 40px;
+}
+
+.edit-cards-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  padding: 6px 0;
+  margin-bottom: 16px;
+}
+.edit-cards-back-btn:hover {
+  color: var(--amber);
+}
+.edit-cards-back-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.edit-cards-deck-name {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.5vw, 32px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.edit-cards-card-count {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* -- Card List ---------------------------------------------- */
+.edit-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.edit-card-number {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.edit-card-question {
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2.5vw, 20px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+.edit-card-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 16px;
+}
+
+.edit-card-answer {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* -- Card Actions ------------------------------------------- */
+.edit-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.edit-card-delete-btn {
+  color: #ef4444 !important;
+}
+.edit-card-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* -- Empty State -------------------------------------------- */
+.edit-cards-empty {
+  text-align: center;
+  padding: 80px 20px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.edit-cards-empty-icon {
+  font-size: 32px;
+  color: var(--amber);
+  margin-bottom: 16px;
+}
+
+.edit-cards-empty-heading {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.edit-cards-empty-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* -- Loading / Error ---------------------------------------- */
+.edit-cards-loading,
+.edit-cards-error {
+  text-align: center;
+  padding: 96px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+/* -- Edit Modal (wider than default) ------------------------ */
+.edit-card-modal {
+  max-width: 560px !important;
+}
+
+.edit-card-modal .form-field {
+  margin-bottom: 20px;
+}
+
+.edit-card-modal .form-field:last-of-type {
+  margin-bottom: 0;
+}
+
+.edit-card-section-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+/* -- Media Management --------------------------------------- */
+.media-manage {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.media-manage-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.media-manage-current .media-content {
+  margin: 0;
+  max-width: 120px;
+}
+
+.media-manage-current .media-image {
+  max-height: 80px;
+  border-radius: 4px;
+}
+
+.media-manage-current .media-audio {
+  width: 160px;
+}
+
+.media-manage-filename {
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: break-all;
+  flex: 1;
+}
+
+.media-manage-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.media-manage-actions .btn {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
+.media-manage-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.media-manage-pending-name {
+  flex: 1;
+  word-break: break-all;
+}
+
+.media-manage-removed {
+  font-size: 13px;
+  color: #ef4444;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.media-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--amber);
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+}
+.media-file-label:hover {
+  border-color: var(--amber);
+}
+
+.media-file-input {
+  display: none;
+}
+
+/* -- Responsive --------------------------------------------- */
+@media (max-width: 600px) {
+  .edit-cards-inner {
+    padding: 0 20px;
+  }
+  .edit-card {
+    padding: 24px 20px;
+  }
+  .edit-card-modal {
+    padding: 28px 20px !important;
+  }
+}

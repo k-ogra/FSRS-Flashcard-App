@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,12 +13,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
+import com.kogura.FSRS_Flashcard_App.model.MediaMetadata;
+import com.kogura.FSRS_Flashcard_App.model.User;
 import com.kogura.FSRS_Flashcard_App.repository.DeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.FlashcardRepository;
+import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
+import com.kogura.FSRS_Flashcard_App.service.MediaMetadataService;
 import com.kogura.FSRS_Flashcard_App.service.S3Service;
 
 import jakarta.transaction.Transactional;
@@ -28,13 +34,24 @@ import lombok.Data;
 public class FlashcardController {
   private final FlashcardRepository flashcardRepository;
   private final DeckRepository deckRepository;
+  private final UserRepository userRepository;
   private final S3Service s3Service;
+  private final MediaMetadataService mediaMetadataService;
 
   @Autowired
-  public FlashcardController(FlashcardRepository flashcardRepository, DeckRepository deckRepository, S3Service s3Service) {
+  public FlashcardController(FlashcardRepository flashcardRepository, DeckRepository deckRepository,
+      UserRepository userRepository, S3Service s3Service, MediaMetadataService mediaMetadataService) {
     this.flashcardRepository = flashcardRepository;
     this.deckRepository = deckRepository;
+    this.userRepository = userRepository;
     this.s3Service = s3Service;
+    this.mediaMetadataService = mediaMetadataService;
+  }
+
+  private User getAuthenticatedUser() {
+    String username = SecurityContextHolder.getContext().getAuthentication().getName();
+    return userRepository.findByUsername(username)
+        .orElseThrow(() -> new RuntimeException("User not found"));
   }
 
   @GetMapping
@@ -81,6 +98,13 @@ public class FlashcardController {
     }
 
     Flashcard flashcard = optionalFlashcard.get();
+
+    User user = getAuthenticatedUser();
+    Optional<Deck> deckOpt = deckRepository.findById(flashcard.getDeckId());
+    if (deckOpt.isEmpty() || !deckOpt.get().getUser().getId().equals(user.getId())) {
+      return ResponseEntity.notFound().build();
+    }
+
     if (request.getQuestion() != null) {
       flashcard.setQuestion(request.getQuestion());
     }
@@ -89,6 +113,8 @@ public class FlashcardController {
     }
 
     Flashcard updated = flashcardRepository.save(flashcard);
+    mediaMetadataService.refreshDownloadUrlIfNeeded(updated.getQuestionMediaMetadata());
+    mediaMetadataService.refreshDownloadUrlIfNeeded(updated.getAnswerMediaMetadata());
     return ResponseEntity.ok(updated);
   }
 
@@ -100,10 +126,57 @@ public class FlashcardController {
       return ResponseEntity.notFound().build();
     }
 
-    List<String> s3Keys = S3Service.collectS3Keys(List.of(optionalFlashcard.get()));
+    Flashcard flashcard = optionalFlashcard.get();
+
+    User user = getAuthenticatedUser();
+    Optional<Deck> deckOpt = deckRepository.findById(flashcard.getDeckId());
+    if (deckOpt.isEmpty() || !deckOpt.get().getUser().getId().equals(user.getId())) {
+      return ResponseEntity.notFound().build();
+    }
+
+    List<String> s3Keys = S3Service.collectS3Keys(List.of(flashcard));
     s3Service.deleteObjects(s3Keys);
 
     flashcardRepository.deleteById(id);
+    return ResponseEntity.noContent().build();
+  }
+
+  @Transactional
+  @DeleteMapping("/{id}/media")
+  public ResponseEntity<Void> deleteFlashcardMedia(@PathVariable Long id, @RequestParam String side) {
+    if (!"question".equals(side) && !"answer".equals(side)) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    Optional<Flashcard> opt = flashcardRepository.findById(id);
+    if (opt.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+
+    Flashcard flashcard = opt.get();
+
+    User user = getAuthenticatedUser();
+    Optional<Deck> deckOpt = deckRepository.findById(flashcard.getDeckId());
+    if (deckOpt.isEmpty() || !deckOpt.get().getUser().getId().equals(user.getId())) {
+      return ResponseEntity.notFound().build();
+    }
+
+    MediaMetadata meta = "question".equals(side)
+        ? flashcard.getQuestionMediaMetadata()
+        : flashcard.getAnswerMediaMetadata();
+
+    if (meta == null || meta.getS3Key() == null) {
+      return ResponseEntity.noContent().build();
+    }
+
+    s3Service.deleteObjects(List.of(meta.getS3Key()));
+
+    if ("question".equals(side)) {
+      flashcard.setQuestionMediaMetadata(null);
+    } else {
+      flashcard.setAnswerMediaMetadata(null);
+    }
+    flashcardRepository.save(flashcard);
     return ResponseEntity.noContent().build();
   }
 

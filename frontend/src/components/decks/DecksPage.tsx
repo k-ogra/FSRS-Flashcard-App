@@ -215,9 +215,9 @@ export default function DecksPage() {
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
-                    onClick={() => navigate(`/decks/${deck.id}/preview`)}
+                    onClick={() => navigate(`/decks/${deck.id}/edit`)}
                   >
-                    Preview
+                    Edit Cards
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
