@@ -1,4 +1,4 @@
-![Coverage](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App/branch/main/graph/badge.svg)
+[![codecov](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App/branch/test%2Fadd-junit-tests/graph/badge.svg?token=8CU2Q747BT)](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App)
 
 # FSRS Flashcard App
 
