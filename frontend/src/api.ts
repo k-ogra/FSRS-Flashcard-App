@@ -7,6 +7,12 @@ export interface AuthResponse {
   username: string | null;
 }
 
+export interface MediaMetadataDTO {
+  s3Key: string | null;
+  name: string | null;
+  presignedDownloadUrl: string | null;
+}
+
 export interface Deck {
   id: number;
   name: string;
@@ -23,6 +29,8 @@ export interface Deck {
     step: number | null;
     dueDate: string | null;
     lastReview: string | null;
+    questionMediaMetadata: MediaMetadataDTO | null;
+    answerMediaMetadata: MediaMetadataDTO | null;
   }[];
 }
 
@@ -38,6 +46,10 @@ export interface FlashcardStudy {
   hardInterval: string;
   goodInterval: string;
   easyInterval: string;
+  questionMediaUrl: string | null;
+  questionMediaName: string | null;
+  answerMediaUrl: string | null;
+  answerMediaName: string | null;
 }
 
 export interface DeckStats {
@@ -457,11 +469,17 @@ export async function copyDeck(
   return res.json();
 }
 
+export interface CreatedFlashcard {
+  id: number;
+  question: string;
+  answer: string;
+}
+
 export async function createFlashcard(
   deckId: number,
   question: string,
   answer: string,
-): Promise<void> {
+): Promise<CreatedFlashcard> {
   const csrfToken = await getCsrfToken();
   const res = await fetch(`${API_ROOT}/flashcards`, {
     method: "POST",
@@ -477,5 +495,91 @@ export async function createFlashcard(
       .json()
       .catch(() => ({ message: "Failed to create flashcard" }));
     throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+// --- File upload validation ---
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
+
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+};
+
+export function validateMediaFile(file: File): string | null {
+  if (file.size > MAX_FILE_SIZE) {
+    return "File size exceeds 10MB limit.";
+  }
+  const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+  if (
+    !ALLOWED_IMAGE_EXTENSIONS.includes(ext) &&
+    !ALLOWED_AUDIO_EXTENSIONS.includes(ext)
+  ) {
+    return "Only image (.jpg, .png, .gif, .webp) and audio (.mp3, .wav, .ogg) files are allowed.";
+  }
+  return null;
+}
+
+// --- Presigned POST upload ---
+
+export interface PresignedPostData {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export async function getPresignedUploadData(
+  flashcardId: number,
+  fileName: string,
+  isQuestion: boolean,
+): Promise<PresignedPostData> {
+  const params = new URLSearchParams({
+    flashcardId: String(flashcardId),
+    fileName,
+    isQuestion: String(isQuestion),
+  });
+  const res = await fetch(`${API_ROOT}/s3/presigned-upload?${params}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to get upload URL" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function uploadFileToS3(
+  presignedPost: PresignedPostData,
+  file: File,
+): Promise<void> {
+  const formData = new FormData();
+  // Add all presigned fields first
+  for (const [key, value] of Object.entries(presignedPost.fields)) {
+    formData.append(key, value);
+  }
+  // Override Content-Type with the actual file MIME type
+  const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+  const mimeType = file.type || EXTENSION_MIME_MAP[ext] || "application/octet-stream";
+  formData.set("Content-Type", mimeType);
+  // File MUST be appended last — S3 requirement
+  formData.append("file", file);
+
+  const res = await fetch(presignedPost.url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error("Failed to upload file to S3");
   }
 }

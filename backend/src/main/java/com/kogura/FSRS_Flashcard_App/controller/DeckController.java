@@ -10,7 +10,10 @@ import com.kogura.FSRS_Flashcard_App.dto.DeckResponse;
 import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
 import com.kogura.FSRS_Flashcard_App.dto.ShareRequest;
 import com.kogura.FSRS_Flashcard_App.dto.VisibilityRequest;
+import com.kogura.FSRS_Flashcard_App.service.MediaMetadataService;
+import com.kogura.FSRS_Flashcard_App.service.S3Service;
 import com.kogura.FSRS_Flashcard_App.service.StudyService;
+import com.kogura.FSRS_Flashcard_App.model.MediaMetadata;
 import com.kogura.FSRS_Flashcard_App.model.Deck;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 import com.kogura.FSRS_Flashcard_App.model.SharedDeck;
@@ -28,30 +31,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
 @RestController
 @RequestMapping("/api/v0/decks")
 public class DeckController {
+  private static final Logger log = LoggerFactory.getLogger(DeckController.class);
   private final DeckRepository deckRepository;
   private final SharedDeckRepository sharedDeckRepository;
   private final UserRepository userRepository;
   private final UserSettingsRepository userSettingsRepository;
   private final DailyStudyProgressRepository dailyStudyProgressRepository;
   private final StudyService studyService;
+  private final MediaMetadataService mediaMetadataService;
+  private final S3Service s3Service;
 
   @Autowired
   public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository,
       UserRepository userRepository, UserSettingsRepository userSettingsRepository,
-      DailyStudyProgressRepository dailyStudyProgressRepository, StudyService studyService) {
+      DailyStudyProgressRepository dailyStudyProgressRepository, StudyService studyService,
+      MediaMetadataService mediaMetadataService, S3Service s3Service) {
     this.deckRepository = deckRepository;
     this.sharedDeckRepository = sharedDeckRepository;
     this.userRepository = userRepository;
     this.userSettingsRepository = userSettingsRepository;
     this.dailyStudyProgressRepository = dailyStudyProgressRepository;
     this.studyService = studyService;
+    this.mediaMetadataService = mediaMetadataService;
+    this.s3Service = s3Service;
   }
 
   private User getAuthenticatedUser() {
@@ -118,6 +131,7 @@ public class DeckController {
     if (!isOwner && !isShared && !isPublicDeck) {
       return ResponseEntity.notFound().build();
     }
+    mediaMetadataService.refreshDownloadUrlsForFlashcards(d.getFlashcards());
     return ResponseEntity.ok(d);
   }
 
@@ -171,8 +185,13 @@ public class DeckController {
     if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
       return ResponseEntity.notFound().build();
     }
-    dailyStudyProgressRepository.deleteByDeck(optionalDeck.get());
-    sharedDeckRepository.deleteByDeck(optionalDeck.get());
+    Deck deck = optionalDeck.get();
+
+    List<String> s3Keys = S3Service.collectS3Keys(deck.getFlashcards());
+    s3Service.deleteObjects(s3Keys);
+
+    dailyStudyProgressRepository.deleteByDeck(deck);
+    sharedDeckRepository.deleteByDeck(deck);
     deckRepository.deleteById(id);
     return ResponseEntity.noContent().build();
   }
@@ -261,6 +280,7 @@ public class DeckController {
           .body(Map.of("message", "Cannot copy your own deck"));
     }
 
+    // Check if the deck is shared with the user or is public if not, return not found
     boolean isShared = sharedDeckRepository.existsByDeckAndUser(source, user);
     boolean isPublicDeck = source.isPublic();
     if (!isShared && !isPublicDeck) {
@@ -285,10 +305,37 @@ public class DeckController {
     newDeck.setPublic(false);
 
     List<Flashcard> copiedCards = new ArrayList<>();
-    for (Flashcard src : source.getFlashcards()) {
+    for (final Flashcard src : source.getFlashcards()) {
       Flashcard copy = new Flashcard();
       copy.setQuestion(src.getQuestion());
       copy.setAnswer(src.getAnswer());
+
+      // Copy question media
+      final MediaMetadata qMeta = src.getQuestionMediaMetadata();
+      if (qMeta != null && qMeta.getS3Key() != null) {
+        try {
+          String newKey = String.format("uploads/%s/%s/%s",
+              user.getUsername(), UUID.randomUUID(), qMeta.getName());
+          s3Service.copyObject(qMeta.getS3Key(), newKey);
+          copy.setQuestionMediaMetadata(mediaMetadataService.copyMediaMetadata(qMeta, newKey));
+        } catch (Exception e) {
+          log.warn("Failed to copy question media for flashcard {}: {}", src.getId(), e.getMessage());
+        }
+      }
+
+      // Copy answer media
+      final MediaMetadata aMeta = src.getAnswerMediaMetadata();
+      if (aMeta != null && aMeta.getS3Key() != null) {
+        try {
+          String newKey = String.format("uploads/%s/%s/%s",
+              user.getUsername(), UUID.randomUUID(), aMeta.getName());
+          s3Service.copyObject(aMeta.getS3Key(), newKey);
+          copy.setAnswerMediaMetadata(mediaMetadataService.copyMediaMetadata(aMeta, newKey));
+        } catch (Exception e) {
+          log.warn("Failed to copy answer media for flashcard {}: {}", src.getId(), e.getMessage());
+        }
+      }
+
       copiedCards.add(copy);
     }
     newDeck.setFlashcards(copiedCards);

@@ -28,7 +28,7 @@ function Features() {
       icon: "▶",
       title: "Media Integrated Cards",
       description:
-        "Create media integrated cards with images, audio, or video.",
+        "Create media integrated cards with images or audio.",
     },
     {
       icon: "▦",
