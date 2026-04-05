@@ -14,7 +14,9 @@ import {
 } from "../../api";
 import type { FlashcardStudy, Grade } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
+import EditCardModal from "../editcards/EditCardModal";
 import { useAuth } from "../context/useAuth";
+import type { Deck } from "../../api";
 import "./StudyPage.css";
 
 function insertSorted(
@@ -70,7 +72,33 @@ export default function StudyPage() {
   const [adding, setAdding] = useState(false);
   const [questionFile, setQuestionFile] = useState<File | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const [editingCard, setEditingCard] = useState<Deck["flashcards"][0] | null>(null);
+  const [questionFilePreviewUrl, setQuestionFilePreviewUrl] = useState<string | null>(null);
+  const [answerFilePreviewUrl, setAnswerFilePreviewUrl] = useState<string | null>(null);
   const questionRef = useRef<HTMLInputElement>(null);
+  const questionFileInputRef = useRef<HTMLInputElement>(null);
+  const answerFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Create/revoke object URLs for local file previews
+  useEffect(() => {
+    if (!questionFile) {
+      setQuestionFilePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(questionFile);
+    setQuestionFilePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [questionFile]);
+
+  useEffect(() => {
+    if (!answerFile) {
+      setAnswerFilePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(answerFile);
+    setAnswerFilePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [answerFile]);
 
   async function fetchSession() {
     setLoading(true);
@@ -233,6 +261,45 @@ export default function StudyPage() {
     }
   }, [addFormOpen]);
 
+  // Convert a FlashcardStudy into the shape EditCardModal expects
+  function toEditCardData(card: FlashcardStudy): Deck["flashcards"][0] {
+    return {
+      id: card.id,
+      question: card.question,
+      answer: card.answer,
+      createdAt: "",
+      stability: null,
+      difficulty: null,
+      state: null,
+      step: null,
+      dueDate: null,
+      lastReview: null,
+      questionMediaMetadata: card.questionMediaUrl
+        ? { s3Key: null, name: card.questionMediaName, presignedDownloadUrl: card.questionMediaUrl }
+        : null,
+      answerMediaMetadata: card.answerMediaUrl
+        ? { s3Key: null, name: card.answerMediaName, presignedDownloadUrl: card.answerMediaUrl }
+        : null,
+    };
+  }
+
+  // Refresh queues after an edit without resetting session progress (studied count, completed state)
+  async function refreshQueuesAfterEdit() {
+    try {
+      const [newCards, learningCards, reviewCards] = await Promise.all([
+        getNewQueue(deckId),
+        getLearningQueue(deckId, reviewAheadMinutes),
+        getReviewQueue(deckId, reviewAheadMinutes),
+      ]);
+      setNewQueue(newCards);
+      setLearningQueue(learningCards);
+      setReviewQueue(reviewCards);
+      setShowAnswer(false);
+    } catch {
+      // fail silently — user can retry by rating the card
+    }
+  }
+
   if (auth.loading) return null;
 
   if (loading) {
@@ -315,6 +382,7 @@ export default function StudyPage() {
                 <label className="study-add-file-label">
                   {questionFile ? questionFile.name : "Attach image/audio to question"}
                   <input
+                    ref={questionFileInputRef}
                     type="file"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
@@ -335,11 +403,16 @@ export default function StudyPage() {
                   />
                 </label>
                 {questionFile && (
-                  <button type="button" className="study-add-file-clear" onClick={() => setQuestionFile(null)} disabled={adding}>
+                  <button type="button" className="study-add-file-clear" onClick={() => { setQuestionFile(null); if (questionFileInputRef.current) questionFileInputRef.current.value = ""; }} disabled={adding}>
                     &times;
                   </button>
                 )}
               </div>
+              {questionFile && questionFilePreviewUrl && (
+                <div className="study-add-file-preview">
+                  <MediaRenderer url={questionFilePreviewUrl} fileName={questionFile.name} />
+                </div>
+              )}
               <input
                 className="study-add-input"
                 type="text"
@@ -352,6 +425,7 @@ export default function StudyPage() {
                 <label className="study-add-file-label">
                   {answerFile ? answerFile.name : "Attach image/audio to answer"}
                   <input
+                    ref={answerFileInputRef}
                     type="file"
                     accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg"
                     className="study-add-file-input"
@@ -372,11 +446,16 @@ export default function StudyPage() {
                   />
                 </label>
                 {answerFile && (
-                  <button type="button" className="study-add-file-clear" onClick={() => setAnswerFile(null)} disabled={adding}>
+                  <button type="button" className="study-add-file-clear" onClick={() => { setAnswerFile(null); if (answerFileInputRef.current) answerFileInputRef.current.value = ""; }} disabled={adding}>
                     &times;
                   </button>
                 )}
               </div>
+              {answerFile && answerFilePreviewUrl && (
+                <div className="study-add-file-preview">
+                  <MediaRenderer url={answerFilePreviewUrl} fileName={answerFile.name} />
+                </div>
+              )}
             </div>
             {addError && (
               <div className="form-error" style={{ marginTop: 8 }}>
@@ -442,7 +521,16 @@ export default function StudyPage() {
           </div>
         ) : currentCard ? (
           <div className="study-card">
-            <p className="study-progress">{remaining} cards left</p>
+            <div className="study-card-top">
+              <p className="study-progress">{remaining} cards left</p>
+              <button
+                type="button"
+                className="study-edit-btn"
+                onClick={() => setEditingCard(toEditCardData(currentCard))}
+              >
+                Edit Card
+              </button>
+            </div>
             <p className="study-question-text">{currentCard.question}</p>
             <MediaRenderer url={currentCard.questionMediaUrl} fileName={currentCard.questionMediaName} />
 
@@ -505,6 +593,17 @@ export default function StudyPage() {
           </div>
         ) : null}
       </div>
+
+      {editingCard && (
+        <EditCardModal
+          card={editingCard}
+          onClose={() => setEditingCard(null)}
+          onSaved={async () => {
+            setEditingCard(null);
+            await refreshQueuesAfterEdit();
+          }}
+        />
+      )}
     </div>
   );
 }

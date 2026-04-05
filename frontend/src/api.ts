@@ -499,6 +499,67 @@ export async function createFlashcard(
   return res.json();
 }
 
+export async function updateFlashcard(
+  id: number,
+  question: string,
+  answer: string,
+): Promise<Deck["flashcards"][0]> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/flashcards/${id}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ question, answer }),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to update flashcard" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function deleteFlashcard(id: number): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/flashcards/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to delete flashcard" }));
+    throw new ApiError(data.message, res.status);
+  }
+}
+
+export async function deleteFlashcardMedia(
+  id: number,
+  side: "question" | "answer",
+): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/flashcards/${id}/media?side=${side}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "X-XSRF-TOKEN": csrfToken,
+    },
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to delete media" }));
+    throw new ApiError(data.message, res.status);
+  }
+}
+
 // --- File upload validation ---
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
