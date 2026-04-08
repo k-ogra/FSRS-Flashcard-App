@@ -25,14 +25,34 @@ import io.github.openspacedrepetition.Rating;
 import io.github.openspacedrepetition.Scheduler;
 import io.github.openspacedrepetition.State;
 
+/**
+ * Core study session service — manages flashcard queues (new, learning, review),
+ * processes card reviews through the FSRS scheduling algorithm, and tracks daily
+ * study progress to enforce per-deck limits.
+ */
 @Service
 public class StudyService {
 
+  /** Repository for flashcard CRUD and queue queries. */
   private final FlashcardRepository flashcardRepository;
+
+  /** Repository for per-user, per-deck daily study progress tracking. */
   private final DailyStudyProgressRepository dailyStudyProgressRepository;
+
+  /** FSRS spaced-repetition scheduler used to compute next review intervals. */
   private final Scheduler scheduler;
+
+  /** Service for refreshing presigned S3 download URLs on media metadata. */
   private final MediaMetadataService mediaMetadataService;
 
+  /**
+   * Constructs the study service with required dependencies.
+   *
+   * @param flashcardRepository            flashcard data access
+   * @param dailyStudyProgressRepository   daily progress data access
+   * @param scheduler                      FSRS scheduling engine
+   * @param mediaMetadataService           media URL refresh service
+   */
   public StudyService(FlashcardRepository flashcardRepository,
       DailyStudyProgressRepository dailyStudyProgressRepository, Scheduler scheduler,
       MediaMetadataService mediaMetadataService) {
@@ -43,12 +63,14 @@ public class StudyService {
   }
 
   /**
-   * Get the daily study progress for a user and deck.
-   * If the progress does not exist, create it.
-   * If the progress is older than today, reset it.
-   * @param user The user.
-   * @param deck The deck.
-   * @return The daily study progress.
+   * Retrieves or creates the daily study progress record for the given user and deck.
+   * If the existing record is from a previous day, its counters are reset and the date
+   * is updated to today. Handles concurrent insert race conditions via a catch-and-retry
+   * on {@link DataIntegrityViolationException}.
+   *
+   * @param user the authenticated user
+   * @param deck the deck being studied
+   * @return today's {@link DailyStudyProgress} record, never {@code null}
    */
   private DailyStudyProgress getOrCreateTodayProgress(User user, Deck deck) {
     LocalDate today = LocalDate.now();
@@ -76,6 +98,14 @@ public class StudyService {
     return progress;
   }
 
+  /**
+   * Converts a database {@link Flashcard} entity into an FSRS {@link Card} object
+   * for use with the scheduler. Cards with a {@code null} state (never reviewed) are
+   * treated as {@link State#LEARNING}.
+   *
+   * @param dbCard the flashcard entity from the database
+   * @return an FSRS {@link Card} populated with the flashcard's scheduling fields
+   */
   private Card constructFSRSCardFromDBCard(Flashcard dbCard) {
     return Card.builder()
       .difficulty(dbCard.getDifficulty())
@@ -88,6 +118,13 @@ public class StudyService {
       .build();
   }
 
+  /**
+   * Returns a human-readable state label for a flashcard: {@code "NEW"} if never reviewed,
+   * {@code "LEARNING"} for learning/relearning states, or {@code "REVIEW"} for review state.
+   *
+   * @param card the flashcard to classify
+   * @return the state label string
+   */
   private String stateLabel(Flashcard card) {
     if (card.getLastReview() == null) return "NEW";
     State state = card.getState();
@@ -95,6 +132,14 @@ public class StudyService {
     return "REVIEW";
   }
 
+  /**
+   * Builds a {@link FlashcardStudyDTO} from a flashcard by running the FSRS scheduler
+   * for all four ratings (AGAIN, HARD, GOOD, EASY) to compute interval previews. Also
+   * refreshes presigned download URLs for any attached media.
+   *
+   * @param card the flashcard entity to convert
+   * @return a fully populated study DTO with interval previews and media URLs
+   */
   private FlashcardStudyDTO buildStudyDTO(Flashcard card) {
     Card fsrsCard = constructFSRSCardFromDBCard(card);
     CardAndReviewLog again = this.scheduler.reviewCard(fsrsCard, Rating.AGAIN);
@@ -130,6 +175,16 @@ public class StudyService {
         questionMediaUrl, questionMediaName, answerMediaUrl, answerMediaName);
   }
 
+  /**
+   * Returns the new-card study queue for a deck, limited by the user's remaining daily
+   * new-card allowance. Cards are sorted by due date (nulls last).
+   *
+   * @param deckId           the deck ID to fetch new cards from
+   * @param user             the authenticated user (for daily progress tracking)
+   * @param deck             the deck entity (for daily progress tracking)
+   * @param dailyNewCardLimit the maximum number of new cards allowed per day
+   * @return a list of {@link FlashcardStudyDTO} for unseen cards, capped by the daily limit
+   */
   public List<FlashcardStudyDTO> getNewQueue(Long deckId, User user, Deck deck, int dailyNewCardLimit) {
     List<Flashcard> newCards = flashcardRepository.findByDeckIdAndLastReviewIsNull(deckId);
     DailyStudyProgress progress = getOrCreateTodayProgress(user, deck);
@@ -141,6 +196,15 @@ public class StudyService {
         .toList();
   }
 
+  /**
+   * Returns the learning/relearning study queue for a deck. Includes cards in
+   * {@link State#LEARNING} or {@link State#RELEARNING} whose due date falls within
+   * the ahead-time cutoff. This queue is not subject to daily limits.
+   *
+   * @param deckId       the deck ID to fetch learning cards from
+   * @param aheadMinutes how far ahead (in minutes) to look for due cards
+   * @return a list of {@link FlashcardStudyDTO} sorted by due date
+   */
   public List<FlashcardStudyDTO> getLearningQueue(Long deckId, int aheadMinutes) {
     Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
     List<Flashcard> learningCards = flashcardRepository
@@ -151,6 +215,17 @@ public class StudyService {
         .toList();
   }
 
+  /**
+   * Returns the review study queue for a deck, limited by the user's remaining daily
+   * review allowance. Includes {@link State#REVIEW} cards due within the ahead-time cutoff.
+   *
+   * @param deckId           the deck ID to fetch review cards from
+   * @param aheadMinutes     how far ahead (in minutes) to look for due cards
+   * @param user             the authenticated user (for daily progress tracking)
+   * @param deck             the deck entity (for daily progress tracking)
+   * @param dailyReviewLimit the maximum number of review cards allowed per day
+   * @return a list of {@link FlashcardStudyDTO} for due review cards, capped by the daily limit
+   */
   public List<FlashcardStudyDTO> getReviewQueue(Long deckId, int aheadMinutes, User user, Deck deck,
       int dailyReviewLimit) {
     Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
@@ -165,6 +240,18 @@ public class StudyService {
         .toList();
   }
 
+  /**
+   * Processes a review for a single flashcard: runs the FSRS scheduler with the given
+   * rating, persists the updated scheduling fields, and increments the daily progress
+   * counter for NEW or REVIEW cards (LEARNING/RELEARNING cards are exempt from daily limits).
+   *
+   * @param flashcardId the ID of the flashcard being reviewed
+   * @param grade       the user's rating (AGAIN, HARD, GOOD, or EASY)
+   * @param user        the authenticated user (for daily progress tracking)
+   * @param deck        the deck entity (for daily progress tracking)
+   * @return a {@link FlashcardStudyDTO} reflecting the updated card state and next intervals
+   * @throws RuntimeException if the flashcard is not found
+   */
   public FlashcardStudyDTO reviewCard(Long flashcardId, Rating grade, User user, Deck deck) {
     Flashcard flashcard = flashcardRepository.findById(flashcardId)
         .orElseThrow(() -> new RuntimeException("Flashcard not found"));
@@ -204,6 +291,18 @@ public class StudyService {
     return buildStudyDTO(saved);
   }
 
+  /**
+   * Returns aggregate study counts for a deck, capping new and review counts by the
+   * user's remaining daily allowances. The learning count is returned uncapped.
+   *
+   * @param deckId           the deck ID to count cards for
+   * @param aheadMinutes     how far ahead (in minutes) to look for due cards
+   * @param user             the authenticated user (for daily progress tracking)
+   * @param deck             the deck entity (for daily progress tracking)
+   * @param dailyNewCardLimit the maximum number of new cards allowed per day
+   * @param dailyReviewLimit  the maximum number of review cards allowed per day
+   * @return a {@link DeckStatsDTO} with capped new/review counts and uncapped learning count
+   */
   public DeckStatsDTO getDeckStudyCounts(Long deckId, int aheadMinutes, User user, Deck deck,
       int dailyNewCardLimit, int dailyReviewLimit) {
     Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));

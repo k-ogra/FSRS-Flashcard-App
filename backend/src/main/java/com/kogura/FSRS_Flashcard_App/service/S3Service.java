@@ -37,22 +37,46 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
+/**
+ * Service for interacting with Amazon S3 — handles object copies, deletions,
+ * presigned download URLs, and presigned POST policies for form-based uploads.
+ */
 @Service
 public class S3Service {
 
-  private static final int MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  /** Maximum allowed upload file size in bytes (10 MB). */
+  private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+  /** The TTL for presigned URLs in seconds (10 minutes). */
+  private static final int PRESIGNED_URL_TTL_SECONDS = 600;
+
+  /** Provides the configured S3 bucket name. */
   private final S3Buckets s3Buckets;
+
+  /** AWS S3 client used for non-presigned operations (copy, delete). */
   private final S3Client s3Client;
 
+  /** AWS region injected from application properties, used for SigV4 signing. */
   @Value("${aws.s3.region}")
   private String awsRegion;
 
+  /**
+   * Constructs the S3 service with required dependencies.
+   *
+   * @param s3Buckets provides the configured bucket name
+   * @param s3Client  AWS S3 client for object operations
+   */
   public S3Service(S3Buckets s3Buckets, S3Client s3Client) {
     this.s3Buckets = s3Buckets;
     this.s3Client = s3Client;
   }
 
+  /**
+   * Copies an object within the same bucket, replacing its metadata with an empty map.
+   *
+   * @param sourceKey      the S3 key of the source object
+   * @param destinationKey the S3 key for the copied object
+   */
   public void copyObject(String sourceKey, String destinationKey) {
     CopyObjectRequest request = CopyObjectRequest.builder()
         .sourceBucket(s3Buckets.getBucketName())
@@ -65,7 +89,12 @@ public class S3Service {
     s3Client.copyObject(request);
   }
 
-  /* Create a pre-signed URL to download an object in a subsequent GET request. */
+  /**
+   * Creates a presigned GET URL for downloading an S3 object. The URL is valid for PRESIGNED_URL_TTL_SECONDS.
+   *
+   * @param s3Key the S3 key of the object to download
+   * @return a presigned URL string that can be used in a GET request
+   */
   public String createPresignedDownloadUrl(String s3Key) {
     try (S3Presigner presigner = S3Presigner.create()) {
 
@@ -75,7 +104,7 @@ public class S3Service {
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(10))
+                .signatureDuration(Duration.ofMinutes(PRESIGNED_URL_TTL_SECONDS))
                 .getObjectRequest(objectRequest)
                 .build();
 
@@ -86,7 +115,7 @@ public class S3Service {
 
   /**
    *  Create a presigned POST policy for form-based upload with file size and content-type enforcement. 
-   *  S3 SDK doesn't seem to have a way to create a presigned POST policy with content-type enforcement, so to do it manually
+   *  The Java S3 SDK doesn't seem to have a way to create a presigned POST policy with content-type enforcement, so to do it manually
    *  @param key The S3 key for the uploaded file.
    *  @param metadata The metadata for the uploaded file.
    *  @param contentTypePrefix The content type prefix for the uploaded file.
@@ -178,8 +207,12 @@ public class S3Service {
 
 
   /**
-   *  Delete a list of S3 objects.
-   *  @param s3Keys The list of S3 keys to delete.
+   * Deletes a list of S3 objects in batches of up to 1000 keys (the S3 API limit per request).
+   * No-ops safely when the key list is {@code null} or empty. Throws a {@link RuntimeException}
+   * if S3 reports any deletion errors.
+   *
+   * @param s3Keys the list of S3 keys to delete; may be {@code null} or empty
+   * @throws RuntimeException if any objects fail to delete
    */
   public void deleteObjects(List<String> s3Keys) {
     if (s3Keys == null || s3Keys.isEmpty()) return;
@@ -209,9 +242,12 @@ public class S3Service {
   }
 
   /**
-   *  Collect the S3 keys for a list of flashcards.
-   *  @param flashcards The list of flashcards.
-   *  @return The list of S3 keys.
+   * Collects all non-null S3 keys from the question and answer media metadata of the given
+   * flashcards. Keys are returned in card order, with question keys before answer keys
+   * within each card.
+   *
+   * @param flashcards the flashcards to extract S3 keys from
+   * @return a list of S3 keys; empty if no media is attached
    */
   public static List<String> collectS3Keys(List<Flashcard> flashcards) {
     List<String> keys = new ArrayList<>();
@@ -226,16 +262,36 @@ public class S3Service {
     return keys;
   }
 
+  /**
+   * Escapes backslashes and double quotes for safe inclusion in a JSON string literal.
+   *
+   * @param value the raw string to escape
+   * @return the JSON-escaped string
+   */
   private String escapeJson(String value) {
     return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
+  /**
+   * Computes an HMAC-SHA256 message authentication code.
+   *
+   * @param key  the secret key bytes
+   * @param data the data to sign
+   * @return the raw HMAC-SHA256 bytes
+   * @throws Exception if the HMAC algorithm is unavailable
+   */
   private byte[] hmacSha256(byte[] key, String data) throws Exception {
     Mac mac = Mac.getInstance("HmacSHA256");
     mac.init(new SecretKeySpec(key, "HmacSHA256"));
     return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
   }
 
+  /**
+   * Encodes a byte array as a lowercase hexadecimal string.
+   *
+   * @param bytes the bytes to encode
+   * @return the hex-encoded string
+   */
   private String hexEncode(byte[] bytes) {
     StringBuilder sb = new StringBuilder(bytes.length * 2);
     for (byte b : bytes) {

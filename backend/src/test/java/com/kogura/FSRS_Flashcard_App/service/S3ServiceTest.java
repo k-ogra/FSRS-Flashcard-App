@@ -51,6 +51,11 @@ public class S3ServiceTest {
 
   // ── copyObject ─────────────────────────────────────────────
 
+  /**
+   * Verifies that {@code copyObject} builds a {@link CopyObjectRequest} with the correct
+   * source/destination bucket and keys, uses {@code REPLACE} metadata directive, and passes
+   * an empty metadata map.
+   */
   @Test
   void copyObject_buildsRequestWithCorrectBucketAndKeys() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -73,18 +78,28 @@ public class S3ServiceTest {
 
   // ── deleteObjects ──────────────────────────────────────────
 
+  /**
+   * Verifies that passing a {@code null} key list is a safe no-op — no S3 delete call is made.
+   */
   @Test
   void deleteObjects_nullList_doesNothing() {
     s3Service.deleteObjects(null);
     verify(s3Client, never()).deleteObjects(any(DeleteObjectsRequest.class));
   }
 
+  /**
+   * Verifies that passing an empty key list is a safe no-op — no S3 delete call is made.
+   */
   @Test
   void deleteObjects_emptyList_doesNothing() {
     s3Service.deleteObjects(Collections.emptyList());
     verify(s3Client, never()).deleteObjects(any(DeleteObjectsRequest.class));
   }
 
+  /**
+   * Verifies that a small list of keys (under the 1000-key batch limit) is sent in a single
+   * {@link DeleteObjectsRequest} containing all keys in order.
+   */
   @Test
   void deleteObjects_singleBatch_sendsOneRequestWithAllKeys() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -106,6 +121,10 @@ public class S3ServiceTest {
     assertThat(request.delete().quiet()).isFalse();
   }
 
+  /**
+   * Verifies that exactly 1000 keys (the batch size boundary) results in a single delete request,
+   * not two.
+   */
   @Test
   void deleteObjects_exactlyBatchSize_sendsSingleRequest() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -121,6 +140,10 @@ public class S3ServiceTest {
     verify(s3Client, times(1)).deleteObjects(any(DeleteObjectsRequest.class));
   }
 
+  /**
+   * Verifies that 2500 keys are split into three batches (1000 + 1000 + 500) sent as
+   * separate {@link DeleteObjectsRequest} calls.
+   */
   @Test
   void deleteObjects_overBatchSize_splitsIntoMultipleRequests() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -142,6 +165,10 @@ public class S3ServiceTest {
     assertThat(requests.get(2).delete().objects()).hasSize(500);
   }
 
+  /**
+   * Verifies that when S3 returns an error for a deleted key, a {@link RuntimeException} is
+   * thrown containing the key name and error message.
+   */
   @Test
   void deleteObjects_whenResponseHasErrors_throwsRuntimeException() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -157,6 +184,10 @@ public class S3ServiceTest {
         .hasMessageContaining("AccessDenied");
   }
 
+  /**
+   * Verifies that when S3 returns multiple errors, the thrown exception message includes
+   * all failed keys and their respective error messages.
+   */
   @Test
   void deleteObjects_whenResponseHasMultipleErrors_includesAllInMessage() {
     when(s3Buckets.getBucketName()).thenReturn(BUCKET_NAME);
@@ -175,12 +206,19 @@ public class S3ServiceTest {
 
   // ── collectS3Keys (static) ─────────────────────────────────
 
+  /**
+   * Verifies that an empty flashcard list produces an empty key list.
+   */
   @Test
   void collectS3Keys_emptyList_returnsEmptyList() {
     List<String> result = S3Service.collectS3Keys(Collections.emptyList());
     assertThat(result).isEmpty();
   }
 
+  /**
+   * Verifies that a flashcard with both question and answer media returns both S3 keys
+   * in order (question first, then answer).
+   */
   @Test
   void collectS3Keys_cardWithBothMediaKeys_returnsBoth() {
     Flashcard fc = new Flashcard();
@@ -192,6 +230,10 @@ public class S3ServiceTest {
     assertThat(result).containsExactly("q-key.jpg", "a-key.mp3");
   }
 
+  /**
+   * Verifies that a flashcard with {@code null} media metadata on both sides produces
+   * no keys (nulls are safely skipped).
+   */
   @Test
   void collectS3Keys_cardWithNullMetadata_skipsNulls() {
     Flashcard fc = new Flashcard();
@@ -203,6 +245,10 @@ public class S3ServiceTest {
     assertThat(result).isEmpty();
   }
 
+  /**
+   * Verifies that a {@link MediaMetadata} with a {@code null} S3 key is excluded from
+   * the result, while a valid key on the other side is still collected.
+   */
   @Test
   void collectS3Keys_metadataWithNullKey_skipsIt() {
     Flashcard fc = new Flashcard();
@@ -214,6 +260,10 @@ public class S3ServiceTest {
     assertThat(result).containsExactly("a-key.mp3");
   }
 
+  /**
+   * Verifies that keys from multiple flashcards are collected in card order, with
+   * question keys before answer keys within each card, skipping null metadata.
+   */
   @Test
   void collectS3Keys_multipleCards_collectsAllKeysInOrder() {
     Flashcard fc1 = new Flashcard();
