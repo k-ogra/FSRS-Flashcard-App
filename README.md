@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App/branch/test%2Fadd-junit-tests/graph/badge.svg?token=8CU2Q747BT)](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App)
+
 # FSRS Flashcard App
 
 A modern flashcard application powered by the Free Spaced Repetition Scheduler 6 (FSRS-6) algorithm, designed to help you study smarter and remember more.
