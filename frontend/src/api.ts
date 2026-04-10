@@ -17,6 +17,7 @@ export interface Deck {
   id: number;
   name: string;
   isPublic: boolean;
+  isShared: boolean;
   createdAt: string;
   flashcards: {
     id: number;

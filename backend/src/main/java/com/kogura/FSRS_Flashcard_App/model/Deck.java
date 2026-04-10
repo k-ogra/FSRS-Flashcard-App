@@ -1,6 +1,9 @@
 package com.kogura.FSRS_Flashcard_App.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 import jakarta.persistence.Column;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -12,20 +15,19 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "decks", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"user_id", "name"})
 })
@@ -48,4 +50,19 @@ public class Deck {
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "deck_id")
   private List<Flashcard> flashcards = new ArrayList<>();
+
+  @Transient
+  @Getter(AccessLevel.NONE)
+  @Setter(AccessLevel.NONE)
+  private boolean isShared = false;
+
+  @JsonProperty("isShared")
+  public boolean isShared() {
+    return isShared;
+  }
+
+  @JsonIgnore
+  public void setShared(boolean shared) {
+    this.isShared = shared;
+  }
 }

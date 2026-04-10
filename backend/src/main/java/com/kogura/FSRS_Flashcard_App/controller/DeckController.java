@@ -28,9 +28,11 @@ import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import jakarta.transaction.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -76,7 +78,12 @@ public class DeckController {
   @GetMapping
   public List<Deck> getAllDecks() {
     User user = getAuthenticatedUser();
-    return deckRepository.findByUser(user);
+    List<Deck> decks = deckRepository.findByUser(user);
+    Set<Long> sharedDeckIds = new HashSet<>(sharedDeckRepository.findDeckIdsWithSharesByOwner(user));
+    for (Deck deck : decks) {
+      deck.setShared(sharedDeckIds.contains(deck.getId()));
+    }
+    return decks;
   }
 
   /**

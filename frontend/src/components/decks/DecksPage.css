@@ -71,6 +71,16 @@
   color: var(--text);
   margin-bottom: 8px;
   letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deck-card-shared-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--amber);
+  cursor: help;
 }
 
 .deck-card-count {
