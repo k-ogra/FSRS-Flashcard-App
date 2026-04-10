@@ -1,5 +1,5 @@
 // TODO: Change to actual backend URL (env var?)
-const API_ROOT = "http://localhost:8080/api/v0";
+const API_ROOT = `${import.meta.env.VITE_API_BASE_URL}/api/v0`;
 const API_BASE = `${API_ROOT}/auth`;
 
 export interface AuthResponse {
