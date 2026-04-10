@@ -225,6 +225,7 @@ export default function DecksPage() {
                     className="btn btn-ghost btn-sm"
                     onClick={() =>
                       setShareDeckTarget({ id: deck.id, name: deck.name })
+                      // TODO: Add unshare button
                     }
                   >
                     Share
