@@ -9,6 +9,7 @@ import com.kogura.FSRS_Flashcard_App.dto.CopyDeckRequest;
 import com.kogura.FSRS_Flashcard_App.dto.DeckResponse;
 import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
 import com.kogura.FSRS_Flashcard_App.dto.ShareRequest;
+import com.kogura.FSRS_Flashcard_App.dto.UserSummaryDTO;
 import com.kogura.FSRS_Flashcard_App.dto.VisibilityRequest;
 import com.kogura.FSRS_Flashcard_App.service.MediaMetadataService;
 import com.kogura.FSRS_Flashcard_App.service.S3Service;
@@ -28,9 +29,11 @@ import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import jakarta.transaction.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -76,7 +79,12 @@ public class DeckController {
   @GetMapping
   public List<Deck> getAllDecks() {
     User user = getAuthenticatedUser();
-    return deckRepository.findByUser(user);
+    List<Deck> decks = deckRepository.findByUser(user);
+    Set<Long> sharedDeckIds = new HashSet<>(sharedDeckRepository.findDeckIdsWithSharesByOwner(user));
+    for (Deck deck : decks) {
+      deck.setShared(sharedDeckIds.contains(deck.getId()));
+    }
+    return decks;
   }
 
   /**
@@ -207,6 +215,20 @@ public class DeckController {
     deck.setPublic(request.isPublic());
     deckRepository.save(deck);
     return ResponseEntity.ok(DeckResponse.fromDeck(deck, null));
+  }
+
+  @GetMapping("/{id}/share")
+  public ResponseEntity<?> getDeckRecipients(@PathVariable Long id) {
+    User user = getAuthenticatedUser();
+    Optional<Deck> optionalDeck = deckRepository.findById(id);
+    if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
+      return ResponseEntity.notFound().build();
+    }
+    Deck deck = optionalDeck.get();
+    List<UserSummaryDTO> recipients = sharedDeckRepository.findByDeck(deck).stream()
+        .map(sd -> new UserSummaryDTO(sd.getUser().getId(), sd.getUser().getUsername()))
+        .collect(Collectors.toList());
+    return ResponseEntity.ok(recipients);
   }
 
   @PostMapping("/{id}/share")

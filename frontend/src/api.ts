@@ -1,5 +1,5 @@
 // TODO: Change to actual backend URL (env var?)
-const API_ROOT = "http://localhost:8080/api/v0";
+const API_ROOT = `${import.meta.env.VITE_API_BASE_URL}/api/v0`;
 const API_BASE = `${API_ROOT}/auth`;
 
 export interface AuthResponse {
@@ -17,6 +17,7 @@ export interface Deck {
   id: number;
   name: string;
   isPublic: boolean;
+  isShared: boolean;
   createdAt: string;
   flashcards: {
     id: number;
@@ -68,6 +69,11 @@ export interface DeckSummary {
   sharedByUsername: string | null;
   createdAt: string;
   flashcardCount: number;
+}
+
+export interface UserSummary {
+  id: number;
+  username: string;
 }
 
 export class ApiError extends Error {
@@ -318,6 +324,21 @@ export async function toggleDeckVisibility(
     const data = await res
       .json()
       .catch(() => ({ message: "Failed to update visibility" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getDeckRecipients(
+  deckId: number,
+): Promise<UserSummary[]> {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/share`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load recipients" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();
