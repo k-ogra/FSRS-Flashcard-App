@@ -67,6 +67,42 @@ public class MediaMetadataService {
   }
 
   /**
+   * Attaches a {@link MediaMetadata} row to the given flashcard's question or answer side.
+   * Idempotent — if the side already has metadata pointing at the same {@code s3Key}, returns
+   * the existing row unchanged. Otherwise builds a fresh {@code MediaMetadata} with a
+   * presigned download URL and associates it with the flashcard. The caller is responsible
+   * for persisting the flashcard (cascade will save the new metadata row).
+   *
+   * @param flashcard  the flashcard to attach media to
+   * @param s3Key      the S3 object key of the uploaded file
+   * @param fileName   the original filename to display to the user
+   * @param isQuestion {@code true} for the question side, {@code false} for the answer side
+   * @return the attached metadata (either the pre-existing match or a freshly built instance)
+   */
+  public MediaMetadata attachMediaToFlashcard(Flashcard flashcard, String s3Key, String fileName, boolean isQuestion) {
+    MediaMetadata existing = isQuestion ? flashcard.getQuestionMediaMetadata() : flashcard.getAnswerMediaMetadata();
+    if (existing != null && s3Key.equals(existing.getS3Key())) {
+      return existing;
+    }
+
+    Instant now = Instant.now();
+    String presignedUrl = s3Service.createPresignedDownloadUrl(s3Key);
+
+    MediaMetadata meta = new MediaMetadata();
+    meta.setName(fileName);
+    meta.setS3Key(s3Key);
+    meta.setPresignedDownloadUrl(presignedUrl);
+    meta.setUrlExpiresAt(now.plusSeconds(URL_TTL_SECONDS));
+
+    if (isQuestion) {
+      flashcard.setQuestionMediaMetadata(meta);
+    } else {
+      flashcard.setAnswerMediaMetadata(meta);
+    }
+    return meta;
+  }
+
+  /**
    * Creates a new {@link MediaMetadata} entity by copying the source's name and assigning
    * a new S3 key. Generates a fresh presigned download URL for the new key and persists
    * the copy.

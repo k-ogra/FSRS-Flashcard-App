@@ -8,6 +8,7 @@ import {
   createFlashcard,
   getPresignedUploadData,
   uploadFileToS3,
+  attachFlashcardMedia,
   validateMediaFile,
   getUserSettings,
   ApiError,
@@ -218,24 +219,29 @@ export default function StudyPage() {
     try {
       const created = await createFlashcard(deckId, q, a);
 
-      // Upload media files if attached
-      const uploads: Promise<void>[] = [];
-      if (questionFile) {
-        uploads.push(
-          getPresignedUploadData(created.id, questionFile.name, true)
-            .then((postData) => uploadFileToS3(postData, questionFile)),
-        );
+      // Upload media files in parallel, then attach them sequentially.
+      const questionUpload = questionFile
+        ? (async () => {
+            const postData = await getPresignedUploadData(created.id, questionFile.name, true);
+            await uploadFileToS3(postData, questionFile);
+            return { key: postData.fields.key, name: questionFile.name };
+          })()
+        : null;
+      const answerUpload = answerFile
+        ? (async () => {
+            const postData = await getPresignedUploadData(created.id, answerFile.name, false);
+            await uploadFileToS3(postData, answerFile);
+            return { key: postData.fields.key, name: answerFile.name };
+          })()
+        : null;
+
+      if (questionUpload) {
+        const { key, name } = await questionUpload;
+        await attachFlashcardMedia(created.id, "question", key, name);
       }
-      if (answerFile) {
-        uploads.push(
-          getPresignedUploadData(created.id, answerFile.name, false)
-            .then((postData) => uploadFileToS3(postData, answerFile)),
-        );
-      }
-      if (uploads.length > 0) {
-        await Promise.all(uploads);
-        // Brief delay for SQS processing
-        await new Promise((r) => setTimeout(r, 3000));
+      if (answerUpload) {
+        const { key, name } = await answerUpload;
+        await attachFlashcardMedia(created.id, "answer", key, name);
       }
 
       setNewQuestion("");

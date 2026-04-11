@@ -31,8 +31,13 @@ import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -87,6 +92,22 @@ public class S3Service {
         .metadata(java.util.Collections.emptyMap())
         .build();
     s3Client.copyObject(request);
+  }
+
+  /**
+   * Issues a HEAD request for an S3 object and returns its user-defined metadata map.
+   * Keys in the returned map are lowercase. Throws the underlying AWS SDK exception
+   * if the object does not exist or is inaccessible.
+   *
+   * @param s3ObjectKey the S3 key of the object to HEAD
+   * @return the user-defined metadata map (may be empty, never {@code null})
+   */
+  public Map<String, String> getObjectMetadata(String s3ObjectKey) {
+    HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+        .bucket(s3Buckets.getBucketName())
+        .key(s3ObjectKey)
+        .build());
+    return head.metadata();
   }
 
   /**
@@ -239,6 +260,36 @@ public class S3Service {
         throw new RuntimeException("Failed to delete S3 objects: " + errorDetails);
       }
     }
+  }
+
+  /**
+   * Deletes every S3 object whose key begins with the given prefix, paginating through
+   * the bucket listing in batches. No-ops safely when the prefix is {@code null} or empty.
+   *
+   * @param prefix the S3 key prefix under which all objects should be deleted
+   */
+  public void deleteObjectsByPrefix(String prefix) {
+    if (prefix == null || prefix.isEmpty()) return;
+
+    String continuationToken = null;
+    do {
+      ListObjectsV2Request.Builder requestBuilder = ListObjectsV2Request.builder()
+          .bucket(s3Buckets.getBucketName())
+          .prefix(prefix);
+      if (continuationToken != null) {
+        requestBuilder.continuationToken(continuationToken);
+      }
+
+      ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+      List<String> keys = response.contents().stream()
+          .map(S3Object::key)
+          .toList();
+      deleteObjects(keys);
+
+      continuationToken = Boolean.TRUE.equals(response.isTruncated())
+          ? response.nextContinuationToken()
+          : null;
+    } while (continuationToken != null);
   }
 
   /**

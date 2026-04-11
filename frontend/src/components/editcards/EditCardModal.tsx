@@ -6,6 +6,7 @@ import {
   uploadFileToS3,
   validateMediaFile,
   ApiError,
+  attachFlashcardMedia,
 } from "../../api";
 import type { Deck } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
@@ -135,9 +136,6 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
       // 1. Update text
       await updateFlashcard(card.id, q, a);
 
-      // 2. Handle media changes
-      let didUpload = false;
-
       // Question media
       if (qMediaAction === "remove") {
         await deleteFlashcardMedia(card.id, "question");
@@ -145,11 +143,11 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
         await deleteFlashcardMedia(card.id, "question");
         const postData = await getPresignedUploadData(card.id, newQFile.name, true);
         await uploadFileToS3(postData, newQFile);
-        didUpload = true;
+        await attachFlashcardMedia(card.id, "question", postData.fields.key, newQFile.name);
       } else if (qMediaAction === "add" && newQFile) {
         const postData = await getPresignedUploadData(card.id, newQFile.name, true);
         await uploadFileToS3(postData, newQFile);
-        didUpload = true;
+        await attachFlashcardMedia(card.id, "question", postData.fields.key, newQFile.name);
       }
 
       // Answer media
@@ -159,17 +157,13 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
         await deleteFlashcardMedia(card.id, "answer");
         const postData = await getPresignedUploadData(card.id, newAFile.name, false);
         await uploadFileToS3(postData, newAFile);
-        didUpload = true;
+        await attachFlashcardMedia(card.id, "answer", postData.fields.key, newAFile.name);
       } else if (aMediaAction === "add" && newAFile) {
         const postData = await getPresignedUploadData(card.id, newAFile.name, false);
         await uploadFileToS3(postData, newAFile);
-        didUpload = true;
+        await attachFlashcardMedia(card.id, "answer", postData.fields.key, newAFile.name);
       }
 
-      // 3. Wait for SQS processing if we uploaded
-      if (didUpload) {
-        await new Promise((r) => setTimeout(r, 3000));
-      }
 
       onSaved();
     } catch (err) {

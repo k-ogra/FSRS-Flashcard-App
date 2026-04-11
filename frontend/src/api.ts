@@ -1,4 +1,3 @@
-// TODO: Change to actual backend URL (env var?)
 const API_ROOT = `${import.meta.env.VITE_API_BASE_URL}/api/v0`;
 const API_BASE = `${API_ROOT}/auth`;
 
@@ -561,6 +560,30 @@ export async function deleteFlashcard(id: number): Promise<void> {
   }
 }
 
+export async function attachFlashcardMedia(
+  flashcardId: number,
+  side: "question" | "answer",
+  s3ObjectKey: string,
+  fileName: string,
+): Promise<void> {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(`${API_ROOT}/flashcards/${flashcardId}/media`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    body: JSON.stringify({ side, s3ObjectKey, fileName }),
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to attach media" }));
+    throw new ApiError(data.message, res.status);
+  }
+}
+
 export async function deleteFlashcardMedia(
   id: number,
   side: "question" | "answer",
@@ -662,6 +685,6 @@ export async function uploadFileToS3(
     body: formData,
   });
   if (!res.ok) {
-    throw new Error("Failed to upload file to S3");
+    throw new ApiError("Failed to upload media file", res.status);
   }
 }
