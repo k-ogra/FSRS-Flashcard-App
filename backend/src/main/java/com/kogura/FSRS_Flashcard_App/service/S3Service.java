@@ -33,8 +33,11 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -257,6 +260,36 @@ public class S3Service {
         throw new RuntimeException("Failed to delete S3 objects: " + errorDetails);
       }
     }
+  }
+
+  /**
+   * Deletes every S3 object whose key begins with the given prefix, paginating through
+   * the bucket listing in batches. No-ops safely when the prefix is {@code null} or empty.
+   *
+   * @param prefix the S3 key prefix under which all objects should be deleted
+   */
+  public void deleteObjectsByPrefix(String prefix) {
+    if (prefix == null || prefix.isEmpty()) return;
+
+    String continuationToken = null;
+    do {
+      ListObjectsV2Request.Builder requestBuilder = ListObjectsV2Request.builder()
+          .bucket(s3Buckets.getBucketName())
+          .prefix(prefix);
+      if (continuationToken != null) {
+        requestBuilder.continuationToken(continuationToken);
+      }
+
+      ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+      List<String> keys = response.contents().stream()
+          .map(S3Object::key)
+          .toList();
+      deleteObjects(keys);
+
+      continuationToken = Boolean.TRUE.equals(response.isTruncated())
+          ? response.nextContinuationToken()
+          : null;
+    } while (continuationToken != null);
   }
 
   /**

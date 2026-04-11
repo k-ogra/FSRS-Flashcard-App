@@ -12,6 +12,7 @@ import com.kogura.FSRS_Flashcard_App.repository.SharedDeckRepository;
 import com.kogura.FSRS_Flashcard_App.repository.UserRepository;
 import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import com.kogura.FSRS_Flashcard_App.service.AuthService;
+import com.kogura.FSRS_Flashcard_App.service.S3Service;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
@@ -56,6 +57,10 @@ public class AuthController {
      * The daily study progress repository.
      */
     private final DailyStudyProgressRepository dailyStudyProgressRepository;
+    /**
+     * The S3 service used to clean up a user's uploaded media on account deletion.
+     */
+    private final S3Service s3Service;
 
     /**
      * Sign up a new user.
@@ -159,6 +164,10 @@ public class AuthController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Delete the user's uploaded media from S3 first. If this throws, the @Transactional
+        // rollback leaves the account intact so the user can retry
+        s3Service.deleteObjectsByPrefix("uploads/" + username + "/");
+
         // Remove daily study progress and user settings
         dailyStudyProgressRepository.deleteByUser(user);
         userSettingsRepository.deleteByUser(user);
@@ -179,8 +188,6 @@ public class AuthController {
             session.invalidate();
         }
         SecurityContextHolder.clearContext();
-
-        // TODO: Delete media bucket for the user
 
         return ResponseEntity.ok(new AuthResponse("Account deleted successfully", null));
     }
