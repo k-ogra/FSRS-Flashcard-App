@@ -31,6 +31,8 @@ import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -87,6 +89,22 @@ public class S3Service {
         .metadata(java.util.Collections.emptyMap())
         .build();
     s3Client.copyObject(request);
+  }
+
+  /**
+   * Issues a HEAD request for an S3 object and returns its user-defined metadata map.
+   * Keys in the returned map are lowercase. Throws the underlying AWS SDK exception
+   * if the object does not exist or is inaccessible.
+   *
+   * @param s3ObjectKey the S3 key of the object to HEAD
+   * @return the user-defined metadata map (may be empty, never {@code null})
+   */
+  public Map<String, String> getObjectMetadata(String s3ObjectKey) {
+    HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+        .bucket(s3Buckets.getBucketName())
+        .key(s3ObjectKey)
+        .build());
+    return head.metadata();
   }
 
   /**

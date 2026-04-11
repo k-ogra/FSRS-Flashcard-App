@@ -180,6 +180,8 @@ public class AuthController {
         }
         SecurityContextHolder.clearContext();
 
+        // TODO: Delete media bucket for the user
+
         return ResponseEntity.ok(new AuthResponse("Account deleted successfully", null));
     }
 
