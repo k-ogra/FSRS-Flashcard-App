@@ -252,7 +252,6 @@ export default function DecksPage() {
                     className="btn btn-ghost btn-sm"
                     onClick={() =>
                       setShareDeckTarget({ id: deck.id, name: deck.name })
-                      // TODO: Add unshare button
                     }
                   >
                     Share
@@ -286,6 +285,14 @@ export default function DecksPage() {
           onClose={() => setShareDeckTarget(null)}
           deckId={shareDeckTarget?.id ?? 0}
           deckName={shareDeckTarget?.name ?? ""}
+          onRecipientsChanged={async () => {
+            try {
+              const data = await getDecks();
+              setDecks(data);
+            } catch {
+              // Ignore refresh failures; modal still shows the authoritative list.
+            }
+          }}
         />
 
         {deleteTarget && (

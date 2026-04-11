@@ -71,6 +71,11 @@ export interface DeckSummary {
   flashcardCount: number;
 }
 
+export interface UserSummary {
+  id: number;
+  username: string;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -319,6 +324,21 @@ export async function toggleDeckVisibility(
     const data = await res
       .json()
       .catch(() => ({ message: "Failed to update visibility" }));
+    throw new ApiError(data.message, res.status);
+  }
+  return res.json();
+}
+
+export async function getDeckRecipients(
+  deckId: number,
+): Promise<UserSummary[]> {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/share`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res
+      .json()
+      .catch(() => ({ message: "Failed to load recipients" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();

@@ -12,6 +12,7 @@ import java.util.List;
 
 public interface SharedDeckRepository extends JpaRepository<SharedDeck, Long> {
   List<SharedDeck> findByUser(User user);
+  List<SharedDeck> findByDeck(Deck deck);
   boolean existsByDeckAndUser(Deck deck, User user);
 
   @Query("SELECT sd.deck.id FROM SharedDeck sd WHERE sd.deck.user = :owner GROUP BY sd.deck.id")

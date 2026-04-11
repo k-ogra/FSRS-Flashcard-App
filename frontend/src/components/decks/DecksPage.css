@@ -289,6 +289,82 @@ button.deck-delete-btn:hover {
   justify-content: flex-end;
 }
 
+/* ── Share Recipients List ───────────────────────────────── */
+.share-recipients {
+  margin-bottom: 24px;
+}
+
+.share-recipients-heading {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.share-recipients-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 10px 0;
+}
+
+.share-recipients-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.share-recipient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.share-recipient-row:last-child {
+  border-bottom: none;
+}
+
+.share-recipient-name {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.share-recipient-remove {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.share-recipient-remove:hover:not(:disabled) {
+  color: #f87171;
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+.share-recipient-remove:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.share-recipient-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Toggle Switch ────────────────────────────────────────── */
 .toggle-row {
   display: flex;

@@ -9,6 +9,7 @@ import com.kogura.FSRS_Flashcard_App.dto.CopyDeckRequest;
 import com.kogura.FSRS_Flashcard_App.dto.DeckResponse;
 import com.kogura.FSRS_Flashcard_App.dto.DeckStatsDTO;
 import com.kogura.FSRS_Flashcard_App.dto.ShareRequest;
+import com.kogura.FSRS_Flashcard_App.dto.UserSummaryDTO;
 import com.kogura.FSRS_Flashcard_App.dto.VisibilityRequest;
 import com.kogura.FSRS_Flashcard_App.service.MediaMetadataService;
 import com.kogura.FSRS_Flashcard_App.service.S3Service;
@@ -214,6 +215,20 @@ public class DeckController {
     deck.setPublic(request.isPublic());
     deckRepository.save(deck);
     return ResponseEntity.ok(DeckResponse.fromDeck(deck, null));
+  }
+
+  @GetMapping("/{id}/share")
+  public ResponseEntity<?> getDeckRecipients(@PathVariable Long id) {
+    User user = getAuthenticatedUser();
+    Optional<Deck> optionalDeck = deckRepository.findById(id);
+    if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
+      return ResponseEntity.notFound().build();
+    }
+    Deck deck = optionalDeck.get();
+    List<UserSummaryDTO> recipients = sharedDeckRepository.findByDeck(deck).stream()
+        .map(sd -> new UserSummaryDTO(sd.getUser().getId(), sd.getUser().getUsername()))
+        .collect(Collectors.toList());
+    return ResponseEntity.ok(recipients);
   }
 
   @PostMapping("/{id}/share")
