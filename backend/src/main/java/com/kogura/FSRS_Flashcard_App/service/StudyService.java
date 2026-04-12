@@ -3,7 +3,6 @@ package com.kogura.FSRS_Flashcard_App.service;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -176,68 +175,53 @@ public class StudyService {
   }
 
   /**
-   * Returns the new-card study queue for a deck, limited by the user's remaining daily
-   * new-card allowance. Cards are sorted by due date (nulls last).
+   * Returns a single unified study queue for a deck, combining eligible new, learning,
+   * relearning, and review cards into one list. New and review cards are capped by the
+   * user's remaining daily allowances; learning/relearning cards are uncapped. Learning
+   * and review cards must be due within the ahead-time cutoff.
    *
-   * @param deckId           the deck ID to fetch new cards from
-   * @param user             the authenticated user (for daily progress tracking)
-   * @param deck             the deck entity (for daily progress tracking)
+   * <p>The returned list is not grouped or sorted by due day — the frontend owns
+   * day-grouping and intra-day shuffling since it knows the user's local calendar day.
+   *
+   * @param deckId            the deck ID to fetch cards from
+   * @param aheadMinutes      how far ahead (in minutes) to look for due learning/review cards
+   * @param user              the authenticated user (for daily progress tracking)
+   * @param deck              the deck entity (for daily progress tracking)
    * @param dailyNewCardLimit the maximum number of new cards allowed per day
-   * @return a list of {@link FlashcardStudyDTO} for unseen cards, capped by the daily limit
+   * @param dailyReviewLimit  the maximum number of review cards allowed per day
+   * @return a merged list of {@link FlashcardStudyDTO} for every eligible card
    */
-  public List<FlashcardStudyDTO> getNewQueue(Long deckId, User user, Deck deck, int dailyNewCardLimit) {
-    List<Flashcard> newCards = flashcardRepository.findByDeckIdAndLastReviewIsNull(deckId);
-    DailyStudyProgress progress = getOrCreateTodayProgress(user, deck);
-    int remaining = Math.max(0, dailyNewCardLimit - progress.getNewCardsStudied());
-    return newCards.stream()
-        .map(this::buildStudyDTO)
-        .sorted(Comparator.comparing(FlashcardStudyDTO::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
-        .limit(remaining)
-        .toList();
-  }
-
-  /**
-   * Returns the learning/relearning study queue for a deck. Includes cards in
-   * {@link State#LEARNING} or {@link State#RELEARNING} whose due date falls within
-   * the ahead-time cutoff. This queue is not subject to daily limits.
-   *
-   * @param deckId       the deck ID to fetch learning cards from
-   * @param aheadMinutes how far ahead (in minutes) to look for due cards
-   * @return a list of {@link FlashcardStudyDTO} sorted by due date
-   */
-  public List<FlashcardStudyDTO> getLearningQueue(Long deckId, int aheadMinutes) {
+  public List<FlashcardStudyDTO> getStudyQueue(Long deckId, int aheadMinutes, User user, Deck deck,
+      int dailyNewCardLimit, int dailyReviewLimit) {
     Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
-    List<Flashcard> learningCards = flashcardRepository
-        .findByDeckIdAndStateInAndDueDateLessThanEqual(deckId, List.of(State.LEARNING, State.RELEARNING), cutoff);
-    return learningCards.stream()
-        .map(this::buildStudyDTO)
-        .sorted(Comparator.comparing(FlashcardStudyDTO::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
-        .toList();
-  }
-
-  /**
-   * Returns the review study queue for a deck, limited by the user's remaining daily
-   * review allowance. Includes {@link State#REVIEW} cards due within the ahead-time cutoff.
-   *
-   * @param deckId           the deck ID to fetch review cards from
-   * @param aheadMinutes     how far ahead (in minutes) to look for due cards
-   * @param user             the authenticated user (for daily progress tracking)
-   * @param deck             the deck entity (for daily progress tracking)
-   * @param dailyReviewLimit the maximum number of review cards allowed per day
-   * @return a list of {@link FlashcardStudyDTO} for due review cards, capped by the daily limit
-   */
-  public List<FlashcardStudyDTO> getReviewQueue(Long deckId, int aheadMinutes, User user, Deck deck,
-      int dailyReviewLimit) {
-    Instant cutoff = Instant.now().plus(Duration.ofMinutes(aheadMinutes));
-    List<Flashcard> reviewCards = flashcardRepository
-        .findByDeckIdAndStateAndDueDateLessThanEqual(deckId, State.REVIEW, cutoff);
     DailyStudyProgress progress = getOrCreateTodayProgress(user, deck);
-    int remaining = Math.max(0, dailyReviewLimit - progress.getReviewCardsStudied());
-    return reviewCards.stream()
+
+    int newRemaining = Math.max(0, dailyNewCardLimit - progress.getNewCardsStudied());
+    List<FlashcardStudyDTO> newDtos = flashcardRepository.findByDeckIdAndLastReviewIsNull(deckId).stream()
+        .limit(newRemaining)
         .map(this::buildStudyDTO)
-        .sorted(Comparator.comparing(FlashcardStudyDTO::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
-        .limit(remaining)
         .toList();
+
+    List<FlashcardStudyDTO> learningDtos = flashcardRepository
+        .findByDeckIdAndStateInAndDueDateLessThanEqual(deckId, List.of(State.LEARNING, State.RELEARNING), cutoff)
+        .stream()
+        .map(this::buildStudyDTO)
+        .toList();
+
+    int reviewRemaining = Math.max(0, dailyReviewLimit - progress.getReviewCardsStudied());
+    List<FlashcardStudyDTO> reviewDtos = flashcardRepository
+        .findByDeckIdAndStateAndDueDateLessThanEqual(deckId, State.REVIEW, cutoff)
+        .stream()
+        .limit(reviewRemaining)
+        .map(this::buildStudyDTO)
+        .toList();
+
+    List<FlashcardStudyDTO> merged = new java.util.ArrayList<>(
+        newDtos.size() + learningDtos.size() + reviewDtos.size());
+    merged.addAll(newDtos);
+    merged.addAll(learningDtos);
+    merged.addAll(reviewDtos);
+    return merged;
   }
 
   /**

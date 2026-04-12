@@ -382,48 +382,16 @@ export async function unshareDeck(
   }
 }
 
-export async function getNewQueue(deckId: number): Promise<FlashcardStudy[]> {
-  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/new`, {
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const data = await res
-      .json()
-      .catch(() => ({ message: "Failed to load new queue" }));
-    throw new ApiError(data.message, res.status);
-  }
-  return res.json();
-}
-
-export async function getLearningQueue(
+export async function getStudyQueue(
   deckId: number,
-  aheadMinutes?: number,
 ): Promise<FlashcardStudy[]> {
-  const params = aheadMinutes != null ? `?aheadMinutes=${aheadMinutes}` : "";
-  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/learning${params}`, {
+  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/queue`, {
     credentials: "include",
   });
   if (!res.ok) {
     const data = await res
       .json()
-      .catch(() => ({ message: "Failed to load learning queue" }));
-    throw new ApiError(data.message, res.status);
-  }
-  return res.json();
-}
-
-export async function getReviewQueue(
-  deckId: number,
-  aheadMinutes?: number,
-): Promise<FlashcardStudy[]> {
-  const params = aheadMinutes != null ? `?aheadMinutes=${aheadMinutes}` : "";
-  const res = await fetch(`${API_ROOT}/decks/${deckId}/study/review${params}`, {
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const data = await res
-      .json()
-      .catch(() => ({ message: "Failed to load review queue" }));
+      .catch(() => ({ message: "Failed to load study queue" }));
     throw new ApiError(data.message, res.status);
   }
   return res.json();

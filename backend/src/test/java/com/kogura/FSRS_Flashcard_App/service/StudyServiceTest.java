@@ -124,14 +124,30 @@ public class StudyServiceTest {
     }
   }
 
-  // ── getNewQueue ────────────────────────────────────────────
+  /** Stubs empty returns for both the learning and review repo queries. */
+  private void stubEmptyLearningAndReview() {
+    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
+        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
+    when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
+        eq(10L), eq(State.REVIEW), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
+  }
+
+  /** Stubs an empty return for the new-card repo query. */
+  private void stubEmptyNew() {
+    when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
+        .thenReturn(Collections.emptyList());
+  }
+
+  // ── getStudyQueue ───────────────────────────────────────────
 
   /**
-   * Verifies that the new-card queue is limited by the remaining daily allowance
-   * (daily limit minus cards already studied today).
+   * Verifies that the new-card portion of the unified queue is limited by the remaining
+   * daily allowance (daily limit minus cards already studied today).
    */
   @Test
-  void getNewQueue_returnsNewCardsLimitedByDailyProgress() {
+  void getStudyQueue_newCards_limitedByDailyProgress() {
     Flashcard fc1 = newFlashcard(1L, "Q1", "A1");
     Flashcard fc2 = newFlashcard(2L, "Q2", "A2");
     Flashcard fc3 = newFlashcard(3L, "Q3", "A3");
@@ -140,47 +156,46 @@ public class StudyServiceTest {
         .thenReturn(List.of(fc1, fc2, fc3));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(1, 0)));
-
+    stubEmptyLearningAndReview();
     stubSchedulerForCard(fc1);
 
     // dailyNewCardLimit = 2, already studied 1 → remaining = 1
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 2);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 2, 200);
 
     assertThat(result).hasSize(1);
     assertThat(result.get(0).getId()).isEqualTo(1L);
   }
 
   /**
-   * Verifies that when no unreviewed cards exist in the deck, an empty list is returned.
+   * Verifies that when no cards exist in any queue, an empty list is returned.
    */
   @Test
-  void getNewQueue_noNewCards_returnsEmptyList() {
-    when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
-        .thenReturn(Collections.emptyList());
+  void getStudyQueue_noCards_returnsEmptyList() {
+    stubEmptyNew();
+    stubEmptyLearningAndReview();
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
 
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 20);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(result).isEmpty();
   }
 
   /**
-   * Verifies that when the user has already studied their full daily new-card allowance,
-   * no additional new cards are returned.
+   * Verifies that when the daily new-card limit has been fully consumed, no new cards
+   * appear in the queue.
    */
   @Test
-  void getNewQueue_limitAlreadyReached_returnsEmptyList() {
+  void getStudyQueue_newLimitAlreadyReached_excludesNewCards() {
     Flashcard fc1 = newFlashcard(1L, "Q1", "A1");
     when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
         .thenReturn(List.of(fc1));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(5, 0)));
-
-    stubSchedulerForCard(fc1);
+    stubEmptyLearningAndReview();
 
     // dailyNewCardLimit = 5, already studied 5 → remaining = 0
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 5);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 5, 200);
 
     assertThat(result).isEmpty();
   }
@@ -190,15 +205,15 @@ public class StudyServiceTest {
    * one is created and persisted with today's date.
    */
   @Test
-  void getNewQueue_createsProgressIfNotExists() {
-    when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
-        .thenReturn(Collections.emptyList());
+  void getStudyQueue_createsProgressIfNotExists() {
+    stubEmptyNew();
+    stubEmptyLearningAndReview();
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.empty());
     when(dailyStudyProgressRepository.save(any(DailyStudyProgress.class)))
         .thenAnswer(inv -> inv.getArgument(0));
 
-    studyService.getNewQueue(10L, user, deck, 20);
+    studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     ArgumentCaptor<DailyStudyProgress> captor = ArgumentCaptor.forClass(DailyStudyProgress.class);
     verify(dailyStudyProgressRepository).save(captor.capture());
@@ -213,18 +228,18 @@ public class StudyServiceTest {
    * today and its new/review counters zeroed out.
    */
   @Test
-  void getNewQueue_staleProgress_resetsCounters() {
+  void getStudyQueue_staleProgress_resetsCounters() {
     DailyStudyProgress staleProgress = todayProgress(3, 5);
     staleProgress.setStudyDate(LocalDate.now().minusDays(1));
 
-    when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
-        .thenReturn(Collections.emptyList());
+    stubEmptyNew();
+    stubEmptyLearningAndReview();
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(staleProgress));
     when(dailyStudyProgressRepository.save(any(DailyStudyProgress.class)))
         .thenAnswer(inv -> inv.getArgument(0));
 
-    studyService.getNewQueue(10L, user, deck, 20);
+    studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(staleProgress.getStudyDate()).isEqualTo(LocalDate.now());
     assertThat(staleProgress.getNewCardsStudied()).isZero();
@@ -232,149 +247,178 @@ public class StudyServiceTest {
   }
 
   /**
-   * Verifies that cards returned by the new queue have their state label set to {@code "NEW"}.
+   * Verifies that new cards in the unified queue have their state set to {@code "NEW"}.
    */
   @Test
-  void getNewQueue_setsStateLabelToNEW() {
+  void getStudyQueue_newCards_haveStateNEW() {
     Flashcard fc = newFlashcard(1L, "Q1", "A1");
 
     when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
         .thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
+    stubEmptyLearningAndReview();
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 20);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(result.get(0).getState()).isEqualTo("NEW");
   }
 
-  // ── getLearningQueue ───────────────────────────────────────
-
   /**
-   * Verifies that learning/relearning cards whose due date is within the cutoff window
-   * are returned in the queue.
+   * Verifies that learning and relearning cards due within the cutoff are included in the
+   * queue and are not subject to daily caps (returned even when new/review limits are 0).
    */
   @Test
-  void getLearningQueue_returnsLearningCardsDueWithinCutoff() {
+  void getStudyQueue_learningCards_returnedUncapped() {
     Instant now = Instant.now();
     Flashcard fc1 = reviewedFlashcard(1L, State.LEARNING, now.minus(Duration.ofMinutes(5)));
     Flashcard fc2 = reviewedFlashcard(2L, State.RELEARNING, now.minus(Duration.ofMinutes(2)));
 
+    stubEmptyNew();
     when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
         eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
         .thenReturn(List.of(fc1, fc2));
-
+    when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
+        eq(10L), eq(State.REVIEW), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
+    when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
+        .thenReturn(Optional.of(todayProgress(0, 0)));
     stubSchedulerForCard(fc1);
 
-    List<FlashcardStudyDTO> result = studyService.getLearningQueue(10L, 30);
+    // Both daily limits at 0 — learning cards must still appear
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 0, 0);
 
     assertThat(result).hasSize(2);
   }
 
   /**
-   * Verifies that when no learning cards are due, an empty list is returned.
+   * Verifies that learning/relearning cards have their state set to {@code "LEARNING"}.
    */
   @Test
-  void getLearningQueue_emptyList_returnsEmpty() {
-    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
-        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
-        .thenReturn(Collections.emptyList());
-
-    List<FlashcardStudyDTO> result = studyService.getLearningQueue(10L, 30);
-
-    assertThat(result).isEmpty();
-  }
-
-  /**
-   * Verifies that cards returned by the learning queue have their state label set to
-   * {@code "LEARNING"}.
-   */
-  @Test
-  void getLearningQueue_setsStateLabelToLEARNING() {
+  void getStudyQueue_learningCards_haveStateLEARNING() {
     Instant now = Instant.now();
     Flashcard fc = reviewedFlashcard(1L, State.LEARNING, now);
 
+    stubEmptyNew();
     when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
         eq(10L), any(), any(Instant.class)))
         .thenReturn(List.of(fc));
-
+    when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
+        eq(10L), eq(State.REVIEW), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
+    when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
+        .thenReturn(Optional.of(todayProgress(0, 0)));
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getLearningQueue(10L, 30);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 20, 200);
 
     assertThat(result.get(0).getState()).isEqualTo("LEARNING");
   }
 
-  // ── getReviewQueue ─────────────────────────────────────────
-
   /**
-   * Verifies that the review queue is limited by the remaining daily review allowance
-   * (daily limit minus reviews already completed today).
+   * Verifies that the review portion of the unified queue is limited by the remaining
+   * daily review allowance (daily limit minus reviews already completed today).
    */
   @Test
-  void getReviewQueue_returnsReviewCardsLimitedByDailyProgress() {
+  void getStudyQueue_reviewCards_limitedByDailyProgress() {
     Instant now = Instant.now();
     Flashcard fc1 = reviewedFlashcard(1L, State.REVIEW, now.minus(Duration.ofMinutes(5)));
     Flashcard fc2 = reviewedFlashcard(2L, State.REVIEW, now.minus(Duration.ofMinutes(2)));
 
+    stubEmptyNew();
+    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
+        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
     when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
         eq(10L), eq(State.REVIEW), any(Instant.class)))
         .thenReturn(List.of(fc1, fc2));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
     stubSchedulerForCard(fc1);
 
     // dailyReviewLimit = 1, studied 0 → remaining = 1
-    List<FlashcardStudyDTO> result = studyService.getReviewQueue(10L, 30, user, deck, 1);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 20, 1);
 
     assertThat(result).hasSize(1);
   }
 
   /**
    * Verifies that when the daily review limit has been fully consumed, no review cards
-   * are returned.
+   * appear in the queue.
    */
   @Test
-  void getReviewQueue_limitAlreadyReached_returnsEmpty() {
+  void getStudyQueue_reviewLimitAlreadyReached_excludesReviewCards() {
     Instant now = Instant.now();
     Flashcard fc = reviewedFlashcard(1L, State.REVIEW, now);
 
+    stubEmptyNew();
+    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
+        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
     when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
         eq(10L), eq(State.REVIEW), any(Instant.class)))
         .thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 100)));
 
-    stubSchedulerForCard(fc);
-
-    List<FlashcardStudyDTO> result = studyService.getReviewQueue(10L, 30, user, deck, 100);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 20, 100);
 
     assertThat(result).isEmpty();
   }
 
   /**
-   * Verifies that cards returned by the review queue have their state label set to
-   * {@code "REVIEW"}.
+   * Verifies that review-state cards have their state set to {@code "REVIEW"}.
    */
   @Test
-  void getReviewQueue_setsStateLabelToREVIEW() {
+  void getStudyQueue_reviewCards_haveStateREVIEW() {
     Instant now = Instant.now();
     Flashcard fc = reviewedFlashcard(1L, State.REVIEW, now);
 
+    stubEmptyNew();
+    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
+        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
     when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
         eq(10L), eq(State.REVIEW), any(Instant.class)))
         .thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getReviewQueue(10L, 30, user, deck, 100);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 20, 200);
 
     assertThat(result.get(0).getState()).isEqualTo("REVIEW");
+  }
+
+  /**
+   * Verifies that cards from all three sources (new, learning, review) are merged into
+   * a single flat list.
+   */
+  @Test
+  void getStudyQueue_mergesAllThreeQueues() {
+    Instant now = Instant.now();
+    Flashcard fcNew = newFlashcard(1L, "New Q", "New A");
+    Flashcard fcLearn = reviewedFlashcard(2L, State.LEARNING, now.minus(Duration.ofMinutes(5)));
+    Flashcard fcReview = reviewedFlashcard(3L, State.REVIEW, now.minus(Duration.ofDays(1)));
+
+    when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L))
+        .thenReturn(List.of(fcNew));
+    when(flashcardRepository.findByDeckIdAndStateInAndDueDateLessThanEqual(
+        eq(10L), eq(List.of(State.LEARNING, State.RELEARNING)), any(Instant.class)))
+        .thenReturn(List.of(fcLearn));
+    when(flashcardRepository.findByDeckIdAndStateAndDueDateLessThanEqual(
+        eq(10L), eq(State.REVIEW), any(Instant.class)))
+        .thenReturn(List.of(fcReview));
+    when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
+        .thenReturn(Optional.of(todayProgress(0, 0)));
+    stubSchedulerForCard(fcNew);
+
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 30, user, deck, 20, 200);
+
+    assertThat(result).hasSize(3);
+    assertThat(result.stream().map(FlashcardStudyDTO::getId))
+        .containsExactlyInAnyOrder(1L, 2L, 3L);
   }
 
   // ── reviewCard ─────────────────────────────────────────────
@@ -543,12 +587,12 @@ public class StudyServiceTest {
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(5, 10)));
 
-    // newLimit=10, studied 5→remaining 5; reviewLimit=20, studied 10→remaining 10
+    // newLimit=10, studied 5 → remaining 5; reviewLimit=20, studied 10 → remaining 10
     DeckStatsDTO stats = studyService.getDeckStudyCounts(10L, 30, user, deck, 10, 20);
 
-    assertThat(stats.getNewCount()).isEqualTo(5);       // min(15, 5)
-    assertThat(stats.getLearningCount()).isEqualTo(3);   // uncapped
-    assertThat(stats.getReviewCount()).isEqualTo(10);    // min(25, 10)
+    assertThat(stats.getNewCount()).isEqualTo(5);      // min(15, 5)
+    assertThat(stats.getLearningCount()).isEqualTo(3);  // uncapped
+    assertThat(stats.getReviewCount()).isEqualTo(10);   // min(25, 10)
   }
 
   /**
@@ -618,10 +662,10 @@ public class StudyServiceTest {
     when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L)).thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
+    stubEmptyLearningAndReview();
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 20);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(result.get(0).getQuestionMediaUrl()).isEqualTo("https://s3/q-url");
     assertThat(result.get(0).getQuestionMediaName()).isEqualTo("question.jpg");
@@ -642,10 +686,10 @@ public class StudyServiceTest {
     when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L)).thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
+    stubEmptyLearningAndReview();
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 20);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(result.get(0).getQuestionMediaUrl()).isNull();
     assertThat(result.get(0).getQuestionMediaName()).isNull();
@@ -669,10 +713,10 @@ public class StudyServiceTest {
     when(flashcardRepository.findByDeckIdAndLastReviewIsNull(10L)).thenReturn(List.of(fc));
     when(dailyStudyProgressRepository.findByUserAndDeck(user, deck))
         .thenReturn(Optional.of(todayProgress(0, 0)));
-
+    stubEmptyLearningAndReview();
     stubSchedulerForCard(fc);
 
-    List<FlashcardStudyDTO> result = studyService.getNewQueue(10L, user, deck, 20);
+    List<FlashcardStudyDTO> result = studyService.getStudyQueue(10L, 20, user, deck, 20, 200);
 
     assertThat(result.get(0).getQuestionMediaUrl()).isNull();
     verify(mediaMetadataService, never()).refreshDownloadUrlIfNeeded(any());

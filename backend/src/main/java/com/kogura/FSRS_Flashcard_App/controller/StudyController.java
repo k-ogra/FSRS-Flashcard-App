@@ -53,36 +53,17 @@ public class StudyController {
     return optDeck.get();
   }
 
-  @GetMapping("/new")
-  public ResponseEntity<List<FlashcardStudyDTO>> getNewQueue(@PathVariable Long deckId) {
+  @GetMapping("/queue")
+  public ResponseEntity<List<FlashcardStudyDTO>> getStudyQueue(@PathVariable Long deckId) {
     User user = getAuthenticatedUser();
     Deck deck = getAuthorizedDeck(deckId, user);
     if (deck == null) return ResponseEntity.notFound().build();
-    int limit = userSettingsRepository.findByUser(user)
-        .map(UserSettings::getDailyNewCardLimit).orElse(20);
-    return ResponseEntity.ok(studyService.getNewQueue(deckId, user, deck, limit));
-  }
-
-  @GetMapping("/learning")
-  public ResponseEntity<List<FlashcardStudyDTO>> getLearningQueue(
-      @PathVariable Long deckId,
-      @RequestParam(defaultValue = "20") int aheadMinutes) {
-    User user = getAuthenticatedUser();
-    Deck deck = getAuthorizedDeck(deckId, user);
-    if (deck == null) return ResponseEntity.notFound().build();
-    return ResponseEntity.ok(studyService.getLearningQueue(deckId, aheadMinutes));
-  }
-
-  @GetMapping("/review")
-  public ResponseEntity<List<FlashcardStudyDTO>> getReviewQueue(
-      @PathVariable Long deckId,
-      @RequestParam(defaultValue = "20") int aheadMinutes) {
-    User user = getAuthenticatedUser();
-    Deck deck = getAuthorizedDeck(deckId, user);
-    if (deck == null) return ResponseEntity.notFound().build();
-    int limit = userSettingsRepository.findByUser(user)
-        .map(UserSettings::getDailyReviewLimit).orElse(200);
-    return ResponseEntity.ok(studyService.getReviewQueue(deckId, aheadMinutes, user, deck, limit));
+    UserSettings settings = userSettingsRepository.findByUser(user).orElse(null);
+    int newLimit = settings != null ? settings.getDailyNewCardLimit() : 20;
+    int reviewLimit = settings != null ? settings.getDailyReviewLimit() : 200;
+    int aheadMinutes = settings != null ? settings.getReviewAheadMinutes() : 20;
+    return ResponseEntity.ok(
+        studyService.getStudyQueue(deckId, aheadMinutes, user, deck, newLimit, reviewLimit));
   }
 
   @PostMapping("/review")

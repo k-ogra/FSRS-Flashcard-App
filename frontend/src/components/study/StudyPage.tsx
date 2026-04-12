@@ -1,9 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  getNewQueue,
-  getLearningQueue,
-  getReviewQueue,
+  getStudyQueue,
   submitReview,
   createFlashcard,
   getPresignedUploadData,
@@ -20,17 +18,39 @@ import { useAuth } from "../context/useAuth";
 import type { Deck } from "../../api";
 import "./StudyPage.css";
 
-function insertSorted(
-  queue: FlashcardStudy[],
-  card: FlashcardStudy,
-): FlashcardStudy[] {
-  const newQueue = [...queue];
-  const idx = newQueue.findIndex(
-    (c) => c.dueDate && card.dueDate && c.dueDate > card.dueDate,
-  );
-  if (idx === -1) newQueue.push(card);
-  else newQueue.splice(idx, 0, card);
-  return newQueue;
+function startOfLocalDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Group cards by local calendar day of their dueDate (null dueDate = today),
+// sort day groups ascending, shuffle within each group, and concatenate.
+function organizeQueue(cards: FlashcardStudy[]): FlashcardStudy[] {
+  const todayKey = startOfLocalDay(new Date()).getTime();
+  const groups = new Map<number, FlashcardStudy[]>();
+  for (const card of cards) {
+    const key = card.dueDate
+      ? startOfLocalDay(new Date(card.dueDate)).getTime()
+      : todayKey;
+    const bucket = groups.get(key) ?? [];
+    bucket.push(card);
+    groups.set(key, bucket);
+  }
+  const sortedKeys = [...groups.keys()].sort((a, b) => a - b);
+  const out: FlashcardStudy[] = [];
+  for (const key of sortedKeys) {
+    out.push(...shuffle(groups.get(key)!));
+  }
+  return out;
 }
 
 function formatDuration(iso: string): string {
@@ -54,9 +74,7 @@ export default function StudyPage() {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const [newQueue, setNewQueue] = useState<FlashcardStudy[]>([]);
-  const [learningQueue, setLearningQueue] = useState<FlashcardStudy[]>([]);
-  const [reviewQueue, setReviewQueue] = useState<FlashcardStudy[]>([]);
+  const [queue, setQueue] = useState<FlashcardStudy[]>([]);
   const [reviewAheadMinutes, setReviewAheadMinutes] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,16 +124,9 @@ export default function StudyPage() {
     setError(null);
     try {
       const settings = await getUserSettings();
-      const ahead = settings.reviewAheadMinutes;
-      setReviewAheadMinutes(ahead);
-      const [newCards, learningCards, reviewCards] = await Promise.all([
-        getNewQueue(deckId),
-        getLearningQueue(deckId, ahead),
-        getReviewQueue(deckId, ahead),
-      ]);
-      setNewQueue(newCards);
-      setLearningQueue(learningCards);
-      setReviewQueue(reviewCards);
+      setReviewAheadMinutes(settings.reviewAheadMinutes);
+      const cards = await getStudyQueue(deckId);
+      setQueue(organizeQueue(cards));
       setShowAnswer(false);
       setCompleted(false);
       setStudied(0);
@@ -140,49 +151,25 @@ export default function StudyPage() {
     fetchSession();
   }, [deckId, auth.loading, auth.isAuthenticated]);
 
-  // Priority: learning -> review -> new
-  function getNextCard(): FlashcardStudy | null {
-    if (learningQueue.length > 0) return learningQueue[0];
-    if (reviewQueue.length > 0) return reviewQueue[0];
-    if (newQueue.length > 0) return newQueue[0];
-    return null;
-  }
-
-  function shiftCurrentCard() {
-    const card = getNextCard();
-    if (!card) return;
-    if (card.state === "LEARNING") {
-      setLearningQueue((q) => q.slice(1));
-    } else if (card.state === "REVIEW") {
-      setReviewQueue((q) => q.slice(1));
-    } else {
-      setNewQueue((q) => q.slice(1));
-    }
-  }
-
   async function handleRate(grade: Grade) {
-    const card = getNextCard();
+    const card = queue[0];
     if (!card || reviewing) return;
     setReviewing(true);
     try {
       const updated = await submitReview(deckId, card.id, grade);
-      shiftCurrentCard();
       setStudied((s) => s + 1);
 
-      // Re-insert if still due within the review-ahead window
+      // Re-insert if still due within the review-ahead window.
+      // The updated card is appended and the whole queue is re-organized so
+      // it lands in the correct day bucket and is reshuffled with its peers.
       const reviewAheadTime = reviewAheadMinutes * 60 * 1000;
       const isDue =
-        updated.dueDate &&
-        new Date(updated.dueDate) <= new Date(Date.now() + reviewAheadTime);
-      if (isDue) {
-        if (updated.state === "LEARNING") {
-          setLearningQueue((q) => insertSorted(q, updated));
-        } else if (updated.state === "REVIEW") {
-          setReviewQueue((q) => insertSorted(q, updated));
-        } else {
-          setNewQueue((q) => insertSorted(q, updated));
-        }
-      }
+        updated.dueDate != null &&
+        new Date(updated.dueDate).getTime() <= Date.now() + reviewAheadTime;
+      setQueue((q) => {
+        const remaining = q.slice(1);
+        return organizeQueue(isDue ? [...remaining, updated] : remaining);
+      });
 
       setShowAnswer(false);
     } catch {
@@ -194,17 +181,10 @@ export default function StudyPage() {
 
   // Detect completion
   useEffect(() => {
-    if (
-      !loading &&
-      !completed &&
-      studied > 0 &&
-      newQueue.length === 0 &&
-      learningQueue.length === 0 &&
-      reviewQueue.length === 0
-    ) {
+    if (!loading && !completed && studied > 0 && queue.length === 0) {
       setCompleted(true);
     }
-  }, [newQueue, learningQueue, reviewQueue, loading, completed, studied]);
+  }, [queue, loading, completed, studied]);
 
   async function handleAddCard(e: React.FormEvent) {
     e.preventDefault();
@@ -289,22 +269,26 @@ export default function StudyPage() {
     };
   }
 
-  // Refresh queues after an edit without resetting session progress (studied count, completed state)
+  // Refresh queue after an edit without resetting session progress (studied count, completed state)
   async function refreshQueuesAfterEdit() {
     try {
-      const [newCards, learningCards, reviewCards] = await Promise.all([
-        getNewQueue(deckId),
-        getLearningQueue(deckId, reviewAheadMinutes),
-        getReviewQueue(deckId, reviewAheadMinutes),
-      ]);
-      setNewQueue(newCards);
-      setLearningQueue(learningCards);
-      setReviewQueue(reviewCards);
+      const cards = await getStudyQueue(deckId);
+      setQueue(organizeQueue(cards));
       setShowAnswer(false);
     } catch {
       // fail silently — user can retry by rating the card
     }
   }
+
+  const { newCount, learningCount, reviewCount } = useMemo(() => {
+    let n = 0, l = 0, r = 0;
+    for (const c of queue) {
+      if (c.state === "NEW") n++;
+      else if (c.state === "LEARNING") l++;
+      else if (c.state === "REVIEW") r++;
+    }
+    return { newCount: n, learningCount: l, reviewCount: r };
+  }, [queue]);
 
   if (auth.loading) return null;
 
@@ -328,8 +312,8 @@ export default function StudyPage() {
     );
   }
 
-  const currentCard = getNextCard();
-  const remaining = newQueue.length + learningQueue.length + reviewQueue.length;
+  const currentCard = queue[0] ?? null;
+  const remaining = queue.length;
   const noCardsToStudy = remaining === 0 && studied === 0;
 
   return (
@@ -347,15 +331,15 @@ export default function StudyPage() {
           </div>
           <div className="study-stats">
             <div className="study-stat study-stat--new">
-              <span className="study-stat-value">{newQueue.length}</span>
+              <span className="study-stat-value">{newCount}</span>
               <span className="study-stat-label">New</span>
             </div>
             <div className="study-stat study-stat--learn">
-              <span className="study-stat-value">{learningQueue.length}</span>
+              <span className="study-stat-value">{learningCount}</span>
               <span className="study-stat-label">Learn</span>
             </div>
             <div className="study-stat study-stat--due">
-              <span className="study-stat-value">{reviewQueue.length}</span>
+              <span className="study-stat-value">{reviewCount}</span>
               <span className="study-stat-label">Review</span>
             </div>
           </div>
