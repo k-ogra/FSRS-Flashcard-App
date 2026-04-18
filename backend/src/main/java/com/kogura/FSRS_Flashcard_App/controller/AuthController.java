@@ -189,10 +189,6 @@ public class AuthController {
     @Transactional
     public ResponseEntity<AuthResponse> deleteAccount(HttpServletRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
-        }
 
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
@@ -233,10 +229,6 @@ public class AuthController {
     @GetMapping("/authenticated")
     public ResponseEntity<AuthResponse> authenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).body(new AuthResponse("Unauthorized", null));
-        }
         return ResponseEntity.ok(new AuthResponse("Authenticated", authentication.getName()));
     }
 
@@ -247,10 +239,6 @@ public class AuthController {
     @GetMapping("/settings")
     public ResponseEntity<UserSettingsDTO> getSettings() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).build();
-        }
         User user = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         UserSettings settings = userSettingsRepository.findByUser(user)
@@ -272,11 +260,7 @@ public class AuthController {
      */
     @PutMapping("/settings")
     public ResponseEntity<UserSettingsDTO> updateSettings(@RequestBody UserSettingsDTO request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(401).build();
-        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();        
         User user = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         UserSettings settings = userSettingsRepository.findByUser(user)
