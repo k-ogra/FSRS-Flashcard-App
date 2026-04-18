@@ -19,9 +19,9 @@ jobs:
       postgres:
         image: postgres:latest
         env:
-          POSTGRES_TEST_USER: ${{ secrets.POSTGRES_TEST_USER  }}
-          POSTGRES_TEST_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
-          POSTGRES_TEST_DB_URL: ${{ secrets.POSTGRES_TEST_DB_URL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER  }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB}}
         ports:
           - 5432:5432
         options: >-
