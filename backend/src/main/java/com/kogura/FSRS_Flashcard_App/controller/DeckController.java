@@ -42,19 +42,56 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
+/**
+ * REST controller for deck management endpoints under {@code /api/v0/decks}.
+ *
+ * <p>Handles CRUD operations on decks, visibility toggling, deck sharing,
+ * and copying decks from other users. All endpoints require an authenticated
+ * session except where otherwise noted.
+ */
 @RestController
 @RequestMapping("/api/v0/decks")
 public class DeckController {
+
+  /** Logger for this controller. */
   private static final Logger log = LoggerFactory.getLogger(DeckController.class);
+
+  /** Repository for persisting and querying {@link Deck} entities. */
   private final DeckRepository deckRepository;
+
+  /** Repository for managing {@link SharedDeck} join records. */
   private final SharedDeckRepository sharedDeckRepository;
+
+  /** Repository for looking up {@link User} entities by username or ID. */
   private final UserRepository userRepository;
+
+  /** Repository for reading and persisting per-user {@link UserSettings}. */
   private final UserSettingsRepository userSettingsRepository;
+
+  /** Repository for deleting daily study progress records when a deck is deleted. */
   private final DailyStudyProgressRepository dailyStudyProgressRepository;
+
+  /** Service for computing per-deck FSRS study counts. */
   private final StudyService studyService;
+
+  /** Service for refreshing pre-signed S3 download URLs on flashcard media. */
   private final MediaMetadataService mediaMetadataService;
+
+  /** Service for S3 object operations (delete, copy). */
   private final S3Service s3Service;
 
+  /**
+   * Constructs a {@code DeckController} with all required dependencies.
+   *
+   * @param deckRepository               repository for deck persistence
+   * @param sharedDeckRepository         repository for shared-deck records
+   * @param userRepository               repository for user lookups
+   * @param userSettingsRepository       repository for user settings
+   * @param dailyStudyProgressRepository repository for daily study progress
+   * @param studyService                 service for FSRS study count calculations
+   * @param mediaMetadataService         service for media metadata and URL refresh
+   * @param s3Service                    service for S3 object operations
+   */
   @Autowired
   public DeckController(DeckRepository deckRepository, SharedDeckRepository sharedDeckRepository,
       UserRepository userRepository, UserSettingsRepository userSettingsRepository,
@@ -70,12 +107,26 @@ public class DeckController {
     this.s3Service = s3Service;
   }
 
-  private User getAuthenticatedUser() {
+  /**
+   * Resolves the currently authenticated user from the Spring Security context.
+   *
+   * @return the authenticated {@link User}
+   * @throws RuntimeException if the username from the security context has no matching user record
+   */
+  private User getAuthenticatedUser() throws RuntimeException {
     String username = SecurityContextHolder.getContext().getAuthentication().getName();
     return userRepository.findByUsername(username)
         .orElseThrow(() -> new RuntimeException("User not found"));
   }
 
+  /**
+   * Returns all decks owned by the authenticated user.
+   *
+   * <p>Each deck's {@code isShared} flag is set to {@code true} if at least one
+   * active {@link SharedDeck} record exists for that deck.
+   *
+   * @return list of the authenticated user's decks, never {@code null}
+   */
   @GetMapping
   public List<Deck> getAllDecks() {
     User user = getAuthenticatedUser();
@@ -88,8 +139,13 @@ public class DeckController {
   }
 
   /**
-   * Get the study stats for all decks. Uses the user's reviewAheadMinutes setting to determine the cutoff time for review cards.
-   * @return The study stats for all decks.
+   * Returns FSRS study statistics for all decks owned by the authenticated user.
+   *
+   * <p>Uses the user's {@code reviewAheadMinutes} setting to determine the
+   * cutoff time for cards that are due for review. If no {@link UserSettings}
+   * record exists, default settings are created and persisted.
+   *
+   * @return {@code 200 OK} with a map of deck ID to {@link DeckStatsDTO}
    */
   @GetMapping("/stats")
   public ResponseEntity<Map<Long, DeckStatsDTO>> getAllDeckStats() {
@@ -110,6 +166,11 @@ public class DeckController {
     return ResponseEntity.ok(statsMap);
   }
 
+  /**
+   * Returns all decks marked as public, accessible without authentication.
+   *
+   * @return list of public decks as {@link DeckResponse} projections
+   */
   @GetMapping("/public")
   public List<DeckResponse> getPublicDecks() {
     return deckRepository.findByIsPublicTrue().stream()
@@ -117,6 +178,12 @@ public class DeckController {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Returns all decks that have been shared with the authenticated user by other users.
+   *
+   * @return list of shared decks as {@link DeckResponse} projections, each including
+   *         the username of the user who shared the deck
+   */
   @GetMapping("/shared")
   public List<DeckResponse> getSharedDecks() {
     User user = getAuthenticatedUser();
@@ -125,6 +192,17 @@ public class DeckController {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Returns a single deck by ID, provided the authenticated user is allowed to view it.
+   *
+   * <p>A user may view a deck if they own it, it has been shared with them, or it is public.
+   * Pre-signed S3 download URLs are refreshed for all flashcard media before the response
+   * is serialized.
+   *
+   * @param id the deck ID
+   * @return {@code 200 OK} with the {@link Deck}, or {@code 404 Not Found} if the deck
+   *         does not exist or the user has no access
+   */
   @GetMapping("/{id}")
   public ResponseEntity<Deck> getDeckById(@PathVariable Long id) {
     User user = getAuthenticatedUser();
@@ -143,6 +221,13 @@ public class DeckController {
     return ResponseEntity.ok(d);
   }
 
+  /**
+   * Creates a new deck for the authenticated user.
+   *
+   * @param deck the deck to create; must have a non-blank {@code name}
+   * @return {@code 200 OK} with the saved {@link Deck}, {@code 400 Bad Request} if the name
+   *         is blank, or {@code 409 Conflict} if a deck with the same name already exists
+   */
   @PostMapping
   public ResponseEntity<?> createDeck(@RequestBody Deck deck) {
     User user = getAuthenticatedUser();
@@ -170,21 +255,14 @@ public class DeckController {
     }
   }
 
-  @PutMapping("/{id}")
-  public ResponseEntity<Deck> updateDeck(@PathVariable Long id, @RequestBody Deck deckDetails) {
-    User user = getAuthenticatedUser();
-    Optional<Deck> optionalDeck = deckRepository.findById(id);
-    if (optionalDeck.isEmpty() || !optionalDeck.get().getUser().getId().equals(user.getId())) {
-      return ResponseEntity.notFound().build();
-    }
-
-    Deck deck = optionalDeck.get();
-    deck.setName(deckDetails.getName());
-    deck.setFlashcards(deckDetails.getFlashcards());
-    Deck updated = deckRepository.save(deck);
-    return ResponseEntity.ok(updated);
-  }
-
+  /**
+   * Deletes a deck owned by the authenticated user, along with all associated S3 media,
+   * daily study progress records, and shared-deck records.
+   *
+   * @param id the deck ID to delete
+   * @return {@code 204 No Content} on success, or {@code 404 Not Found} if the deck does
+   *         not exist or is not owned by the authenticated user
+   */
   @Transactional
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteDeck(@PathVariable Long id) {
@@ -204,6 +282,14 @@ public class DeckController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Toggles the public visibility of a deck owned by the authenticated user.
+   *
+   * @param id      the deck ID
+   * @param request the visibility request containing the desired {@code isPublic} value
+   * @return {@code 200 OK} with the updated {@link DeckResponse}, or {@code 404 Not Found}
+   *         if the deck does not exist or is not owned by the authenticated user
+   */
   @PatchMapping("/{id}/visibility")
   public ResponseEntity<?> toggleVisibility(@PathVariable Long id, @RequestBody VisibilityRequest request) {
     User user = getAuthenticatedUser();
@@ -217,6 +303,14 @@ public class DeckController {
     return ResponseEntity.ok(DeckResponse.fromDeck(deck, null));
   }
 
+  /**
+   * Returns the list of users that a deck has been shared with.
+   *
+   * @param id the deck ID
+   * @return {@code 200 OK} with a list of {@link UserSummaryDTO} recipients, or
+   *         {@code 404 Not Found} if the deck does not exist or is not owned by the
+   *         authenticated user
+   */
   @GetMapping("/{id}/share")
   public ResponseEntity<?> getDeckRecipients(@PathVariable Long id) {
     User user = getAuthenticatedUser();
@@ -231,6 +325,16 @@ public class DeckController {
     return ResponseEntity.ok(recipients);
   }
 
+  /**
+   * Shares a deck owned by the authenticated user with another user.
+   *
+   * @param id      the deck ID to share
+   * @param request the share request containing the recipient's username
+   * @return {@code 200 OK} on success, {@code 400 Bad Request} if the username is blank,
+   *         unknown, or refers to the owner, {@code 404 Not Found} if the deck does not
+   *         exist or is not owned by the authenticated user, or {@code 409 Conflict} if
+   *         the deck is already shared with the specified user
+   */
   @PostMapping("/{id}/share")
   public ResponseEntity<?> shareDeck(@PathVariable Long id, @RequestBody ShareRequest request) {
     User owner = getAuthenticatedUser();
@@ -268,6 +372,14 @@ public class DeckController {
     return ResponseEntity.ok(Map.of("message", "Deck shared successfully"));
   }
 
+  /**
+   * Revokes a deck share, removing access for the specified recipient user.
+   *
+   * @param id     the deck ID
+   * @param userId the ID of the user whose access should be revoked
+   * @return {@code 204 No Content} on success, or {@code 404 Not Found} if the deck or
+   *         recipient user does not exist, or the deck is not owned by the authenticated user
+   */
   @DeleteMapping("/{id}/share/{userId}")
   @Transactional
   public ResponseEntity<?> unshareDeck(@PathVariable Long id, @PathVariable Long userId) {
@@ -287,6 +399,20 @@ public class DeckController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Copies a deck that is shared with or public to the authenticated user into their own library.
+   *
+   * <p>Each flashcard is deep-copied, and any S3 media objects (question and answer) are
+   * duplicated under the requesting user's S3 prefix. Media copy failures are logged as
+   * warnings but do not abort the operation.
+   *
+   * @param id      the source deck ID to copy
+   * @param request the copy request containing the desired name for the new deck
+   * @return {@code 200 OK} with the newly created {@link Deck}, {@code 400 Bad Request} if the
+   *         name is blank or the user owns the source deck, {@code 404 Not Found} if the deck
+   *         does not exist or the user has no access, or {@code 409 Conflict} if a deck with
+   *         the requested name already exists in the user's library
+   */
   @PostMapping("/{id}/copy")
   public ResponseEntity<?> copyDeck(@PathVariable Long id, @RequestBody CopyDeckRequest request) {
     User user = getAuthenticatedUser();
