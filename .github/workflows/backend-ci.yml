@@ -19,9 +19,9 @@ jobs:
       postgres:
         image: postgres:latest
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER  }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB }}
+          POSTGRES_TEST_USER: ${{ secrets.POSTGRES_TEST_USER  }}
+          POSTGRES_TEST_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
+          POSTGRES_TEST_DB_URL: ${{ secrets.POSTGRES_TEST_DB_URL }}
         ports:
           - 5432:5432
         options: >-
@@ -43,11 +43,11 @@ jobs:
       - name: Build and run tests with Maven
         run: mvn -ntp -B verify
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB }}
-          S3_REGION: ${{ secrets.S3_TEST_REGION }}
-          S3_BUCKET_NAME: ${{ secrets.S3_TEST_BUCKET_NAME }}
+          POSTGRES_TEST_USER: ${{ secrets.POSTGRES_TEST_USER }}
+          POSTGRES_TEST_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD }}
+          POSTGRES_TEST_DB_URL: ${{ secrets.POSTGRES_TEST_DB_URL }}
+          S3_TEST_REGION: ${{ secrets.S3_TEST_REGION }}
+          S3_TEST_BUCKET_NAME: ${{ secrets.S3_TEST_BUCKET_NAME }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6

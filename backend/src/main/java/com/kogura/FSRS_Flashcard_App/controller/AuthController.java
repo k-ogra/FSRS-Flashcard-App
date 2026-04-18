@@ -14,6 +14,7 @@ import com.kogura.FSRS_Flashcard_App.repository.UserSettingsRepository;
 import com.kogura.FSRS_Flashcard_App.service.AuthService;
 import com.kogura.FSRS_Flashcard_App.service.S3Service;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -61,16 +63,22 @@ public class AuthController {
      * The S3 service used to clean up a user's uploaded media on account deletion.
      */
     private final S3Service s3Service;
+    /**
+     * The CSRF token repository, used to generate and save session-tied tokens after login/signup.
+     */
+    private final CsrfTokenRepository csrfTokenRepository;
 
     /**
      * Sign up a new user.
      * @param request The signup request.
      * @param httpRequest The HTTP request.
+     * @param httpResponse The HTTP response.
      * @return The authentication response.
      */
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request,
-                                               HttpServletRequest httpRequest) {
+                                               HttpServletRequest httpRequest,
+                                               HttpServletResponse httpResponse) {
         User user;
         try {
             user = authService.signup(request);
@@ -84,39 +92,61 @@ public class AuthController {
         loginRequest.setPassword(request.getPassword());
         Authentication authentication = authService.login(loginRequest);
 
-        // Persist the security context in the session
+        // Session fixation protection: invalidate the pre-session and start a fresh authenticated session
+        HttpSession oldSession = httpRequest.getSession(false);
+        if (oldSession != null) {
+            oldSession.invalidate();
+        }
         SecurityContext context = SecurityContextHolder.getContext();
         context.setAuthentication(authentication);
-        HttpSession session = httpRequest.getSession(true);
-        session.setAttribute(
+        HttpSession newSession = httpRequest.getSession(true);
+        newSession.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                 context
         );
 
-        return ResponseEntity.ok(new AuthResponse("Signup successful", user.getUsername()));
+        // Generate a new session-tied CSRF token and return it in the response header
+        CsrfToken sessionCsrf = csrfTokenRepository.generateToken(httpRequest);
+        csrfTokenRepository.saveToken(sessionCsrf, httpRequest, httpResponse);
+
+        return ResponseEntity.ok()
+                .header("X-CSRF-TOKEN", sessionCsrf.getToken())
+                .body(new AuthResponse("Signup successful", user.getUsername()));
     }
 
     /**
      * Log in a user.
      * @param request The login request.
      * @param httpRequest The HTTP request.
+     * @param httpResponse The HTTP response.
      * @return The authentication response.
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request,
-                                              HttpServletRequest httpRequest) {
+                                              HttpServletRequest httpRequest,
+                                              HttpServletResponse httpResponse) {
         Authentication authentication = authService.login(request);
 
-        // Persist the security context in the session
+        // Session fixation protection: invalidate the pre-session and start a fresh authenticated session
+        HttpSession oldSession = httpRequest.getSession(false);
+        if (oldSession != null) {
+            oldSession.invalidate();
+        }
         SecurityContext context = SecurityContextHolder.getContext();
         context.setAuthentication(authentication);
-        HttpSession session = httpRequest.getSession(true);
-        session.setAttribute(
+        HttpSession newSession = httpRequest.getSession(true);
+        newSession.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                 context
         );
 
-        return ResponseEntity.ok(new AuthResponse("Login successful", request.getUsername()));
+        // Generate a new session-tied CSRF token and return it in the response header
+        CsrfToken sessionCsrf = csrfTokenRepository.generateToken(httpRequest);
+        csrfTokenRepository.saveToken(sessionCsrf, httpRequest, httpResponse);
+
+        return ResponseEntity.ok()
+                .header("X-CSRF-TOKEN", sessionCsrf.getToken())
+                .body(new AuthResponse("Login successful", request.getUsername()));
     }
 
     /**
@@ -136,14 +166,18 @@ public class AuthController {
 
     /**
      * Get the CSRF token.
-     * @param csrfToken The CSRF token.
-     * @return The authentication response.
+     * @param csrfToken The CSRF token
+     * @return The CSRF token response.
      */
     @GetMapping("/csrf")
-    public ResponseEntity<AuthResponse> csrf(CsrfToken csrfToken) {
-        // Force the token to be generated and the cookie to be set
-        csrfToken.getToken(); 
-        return ResponseEntity.ok(new AuthResponse("CSRF token set", null));
+    public CsrfToken csrf(HttpServletRequest request, CsrfToken csrfToken) {
+        // Force session creation before the response is committed so that
+        // Spring Session can set the SESSION cookie in the response headers.
+        // Without this, the session would only be created lazily during
+        // Jackson serialization of the CsrfToken body, at which point the
+        // cookie can no longer be reliably written to the response.
+        request.getSession(true);
+        return csrfToken;
     }
 
     /**
