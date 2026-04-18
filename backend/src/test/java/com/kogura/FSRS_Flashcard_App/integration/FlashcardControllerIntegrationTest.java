@@ -21,6 +21,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.EntityExchangeResult;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Map;
 
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @AutoConfigureRestTestClient
+@Testcontainers
 class FlashcardControllerIntegrationTest {
 
     /** Injected random port chosen by the embedded server at startup. */
@@ -55,14 +58,11 @@ class FlashcardControllerIntegrationTest {
      * Started once via a static initializer to avoid per-test container overhead.
      */
     @SuppressWarnings("resource")
+    @Container
     private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test");
-
-    static {
-        postgres.start();
-    }
 
     /**
      * Overrides Spring datasource properties with Testcontainer-provided values.
