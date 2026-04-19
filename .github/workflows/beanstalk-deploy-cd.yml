@@ -1,0 +1,41 @@
+name: CD - Deploy fullstack app to AWS Elastic Beanstalk
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CD - Push Backend Image to ECR", "CD - Push Frontend Image to ECR"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Substitute secrets into docker-compose.yml
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_FRONTEND_REPO: ${{ secrets.ECR_FRONTEND_REPO }}
+          ECR_BACKEND_REPO: ${{ secrets.ECR_BACKEND_REPO }}
+          POSTGRES_DB_URL: ${{ secrets.POSTGRES_DB_URL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+        run: envsubst < docker-compose.yml > docker-compose.substituted.yml && mv docker-compose.substituted.yml docker-compose.yml
+
+      - name: Zip docker-compose.yml
+        run: zip deploy.zip docker-compose.yml
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APPLICATION_NAME }}
+          environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
