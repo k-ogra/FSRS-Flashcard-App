@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @AutoConfigureRestTestClient
 @Testcontainers
-class FlashcardControllerIntegrationTest {
+class FlashcardControllerIT {
 
     /** Injected random port chosen by the embedded server at startup. */
     @LocalServerPort

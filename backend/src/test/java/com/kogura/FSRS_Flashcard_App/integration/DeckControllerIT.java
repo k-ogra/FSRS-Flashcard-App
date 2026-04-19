@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @AutoConfigureRestTestClient
 @Testcontainers
-class DeckControllerIntegrationTest {
+class DeckControllerIT {
 
     /** Injected random port chosen by the embedded server at startup. */
     @LocalServerPort
