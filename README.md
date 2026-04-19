@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App/branch/test%2Fadd-integration-tests/graph/badge.svg?token=8CU2Q747BT)](https://codecov.io/gh/k-ogra/FSRS-Flashcard-App)
+[![codecov](https://codecov.io/github/k-ogra/fsrs-flashcard-app/branch/main/graph/badge.svg?token=8CU2Q747BT)](https://codecov.io/github/k-ogra/fsrs-flashcard-app)
 
 # FSRS Flashcard App
 
