@@ -83,22 +83,11 @@ export class ApiError extends Error {
   }
 }
 
-function parseCsrfFromCookie(): string | null {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="));
-  return match ? decodeURIComponent(match.split("=")[1]) : null;
-}
-
 async function getCsrfToken(): Promise<string> {
-  let token = parseCsrfFromCookie();
-  if (token) return token;
-
-  await fetch(`${API_BASE}/csrf`, { credentials: "include" });
-
-  token = parseCsrfFromCookie();
-  if (!token) throw new Error("Failed to obtain CSRF token");
-  return token;
+  const res = await fetch(`${API_BASE}/csrf`, { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to obtain CSRF token");
+  const data = await res.json();
+  return data.token as string;
 }
 
 export async function signup(

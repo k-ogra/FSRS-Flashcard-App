@@ -18,7 +18,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.kogura.FSRS_Flashcard_App.config.S3Buckets;
+import com.kogura.FSRS_Flashcard_App.config.S3BucketsConfig;
 import com.kogura.FSRS_Flashcard_App.dto.PresignedPostResponse;
 import com.kogura.FSRS_Flashcard_App.model.Flashcard;
 
@@ -56,7 +56,7 @@ public class S3Service {
   private static final int PRESIGNED_URL_TTL_SECONDS = 600;
 
   /** Provides the configured S3 bucket name. */
-  private final S3Buckets s3Buckets;
+  private final S3BucketsConfig s3Buckets;
 
   /** AWS S3 client used for non-presigned operations (copy, delete). */
   private final S3Client s3Client;
@@ -71,7 +71,7 @@ public class S3Service {
    * @param s3Buckets provides the configured bucket name
    * @param s3Client  AWS S3 client for object operations
    */
-  public S3Service(S3Buckets s3Buckets, S3Client s3Client) {
+  public S3Service(S3BucketsConfig s3Buckets, S3Client s3Client) {
     this.s3Buckets = s3Buckets;
     this.s3Client = s3Client;
   }
