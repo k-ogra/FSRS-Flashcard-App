@@ -3,14 +3,17 @@ name: CI - Build, Test, and Coverage
 on:
   push:
     branches:
-      - main
-    paths:
-      - backend/**
-  pull_request:
-    branches:
-      - main
-    paths:
-      - backend/**
+      - feature/aws-beanstalk-cd
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - backend/**
+  # pull_request:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - backend/**
 
 jobs:
   build:
