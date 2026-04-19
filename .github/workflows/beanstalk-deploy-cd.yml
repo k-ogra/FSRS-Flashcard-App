@@ -37,5 +37,6 @@ jobs:
           application_name: ${{ secrets.EB_APPLICATION_NAME }}
           environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
           region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ github.sha }}
+          version_label: ${{ github.run_id }}
+          version_description: ${{ github.SHA }}
           deployment_package: deploy.zip
