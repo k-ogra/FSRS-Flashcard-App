@@ -30,5 +30,6 @@ jobs:
         with:
           context: ./frontend
           push: true
+          no-cache: true
           tags: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_FRONTEND_REPO }}:frontend-latest
           build-args: VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
