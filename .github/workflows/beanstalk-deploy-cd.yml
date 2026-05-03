@@ -20,7 +20,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           ECR_FRONTEND_REPO: ${{ secrets.ECR_FRONTEND_REPO }}
           ECR_BACKEND_REPO: ${{ secrets.ECR_BACKEND_REPO }}
-          POSTGRES_DB_URL: ${{ secrets.POSTGRES_DB_URL }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}

@@ -9,12 +9,34 @@ services:
 
   backend:
     image: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_REPO}:backend-latest"
-    mem_limit: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy   
+    mem_limit: 512m
     environment:
-      POSTGRES_DB_URL: "${POSTGRES_DB_URL}"
+      POSTGRES_DB_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB}"
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       S3_REGION: "${AWS_REGION}"
       S3_BUCKET_NAME: "${S3_BUCKET_NAME}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
 
+  postgres:
+    image: postgres:18.3-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    mem_limit: 256m
+
+volumes:
+  postgres_data:
