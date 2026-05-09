@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
 
     /**
      * Create a security filter chain.
@@ -147,8 +151,7 @@ public class SecurityConfig {
   @Bean
   public UrlBasedCorsConfigurationSource corsConfigurationSource() {
       CorsConfiguration config = new CorsConfiguration();
-      // TOOD: Change to use actual frontend source 
-      config.setAllowedOrigins(List.of("http://localhost:5173"));
+      config.setAllowedOrigins(List.of(this.allowedOrigins.split(",")));
       config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
       config.setAllowedHeaders(List.of("*"));
       config.setAllowCredentials(true);

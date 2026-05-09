@@ -14,6 +14,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +50,7 @@ import static org.mockito.Mockito.when;
  * the full application context.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @AutoConfigureRestTestClient
 @Testcontainers
