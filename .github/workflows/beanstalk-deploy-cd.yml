@@ -3,7 +3,7 @@ name: CD - Deploy fullstack app to AWS Elastic Beanstalk
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["CD - Push Backend Image to ECR", "CD - Push Frontend Image to ECR"]
+    workflows: ["Backend - CI and Push Image to ECR", "CD - Push Frontend Image to ECR"]
     types: [completed]
     branches: [main]
 
