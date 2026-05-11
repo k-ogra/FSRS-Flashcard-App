@@ -38,7 +38,6 @@ class UserRepositoryTest {
     registry.add("spring.datasource.url", postgres::getJdbcUrl);
     registry.add("spring.datasource.username", postgres::getUsername);
     registry.add("spring.datasource.password", postgres::getPassword);
-    registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     // Prevent HikariCP from blocking 30 s trying to reconnect to the stopped
     // container during JVM shutdown (default connectionTimeout = 30 000 ms).
     registry.add("spring.datasource.hikari.connection-timeout", () -> "3000");
