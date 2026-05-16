@@ -30,7 +30,10 @@ public class Flashcard {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+  @Column(columnDefinition = "TEXT")
   private String question;
+
+  @Column(columnDefinition = "TEXT")
   private String answer;
 
   @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)

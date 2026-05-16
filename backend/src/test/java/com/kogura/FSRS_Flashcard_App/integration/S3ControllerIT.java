@@ -80,7 +80,6 @@ class S3ControllerIT {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("spring.datasource.hikari.connection-timeout", () -> "3000");
         registry.add("spring.datasource.hikari.minimum-idle", () -> "0");
         registry.add("aws.s3.region", () -> "us-east-1");
