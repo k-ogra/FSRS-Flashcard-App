@@ -52,8 +52,8 @@ public class S3Service {
   /** Maximum allowed upload file size in bytes (10 MB). */
   private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-  /** The TTL for presigned URLs in seconds (10 minutes). */
-  private static final int PRESIGNED_URL_TTL_SECONDS = 600;
+  /** The TTL for presigned URLs in minutes. */
+  private static final int PRESIGNED_URL_TTL_MINUTES= 10;
 
   /** Provides the configured S3 bucket name. */
   private final S3BucketsConfig s3Buckets;
@@ -111,7 +111,7 @@ public class S3Service {
   }
 
   /**
-   * Creates a presigned GET URL for downloading an S3 object. The URL is valid for PRESIGNED_URL_TTL_SECONDS.
+   * Creates a presigned GET URL for downloading an S3 object. The URL is valid for PRESIGNED_URL_TTL_MINUTES.
    *
    * @param s3Key the S3 key of the object to download
    * @return a presigned URL string that can be used in a GET request
@@ -125,7 +125,7 @@ public class S3Service {
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(PRESIGNED_URL_TTL_SECONDS))
+                .signatureDuration(Duration.ofMinutes(PRESIGNED_URL_TTL_MINUTES))
                 .getObjectRequest(objectRequest)
                 .build();
 
