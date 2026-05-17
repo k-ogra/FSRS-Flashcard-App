@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { logout as apiLogout } from "../../api";
 import "./Navbar.css";
@@ -24,7 +24,6 @@ function PersonIcon() {
 
 function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
   const auth = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -41,17 +40,6 @@ function Navbar() {
     }
     return () => document.removeEventListener("mousedown", handleClick);
   }, [dropdownOpen]);
-
-  const handleFeaturesClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (location.pathname === "/") {
-      document
-        .getElementById("features")
-        ?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      navigate("/#features");
-    }
-  };
 
   async function handleLogout() {
     setDropdownOpen(false);
@@ -73,11 +61,6 @@ function Navbar() {
             <span className="logo-text">FSRS Flashcard App</span>
           </Link>
           <ul className="nav-links">
-            <li>
-              <a href="#features" onClick={handleFeaturesClick}>
-                Features
-              </a>
-            </li>
             {auth.isAuthenticated && (
               <>
                 <li>

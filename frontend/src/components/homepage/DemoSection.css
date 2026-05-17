@@ -1,0 +1,39 @@
+.demo {
+  padding: 96px 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.demo-video-frame {
+  position: relative;
+  max-width: 960px;
+  margin: 0 auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.demo-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.demo-video-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .demo {
+    padding: 64px 0;
+  }
+}

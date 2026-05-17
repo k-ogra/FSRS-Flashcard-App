@@ -10,6 +10,7 @@ import {
 } from "../../api";
 import type { Deck } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
+import AutoGrowTextarea from "../shared/AutoGrowTextarea";
 import "./EditCardsPage.css";
 
 type FlashcardData = Deck["flashcards"][0];
@@ -34,7 +35,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
   const [newQPreviewUrl, setNewQPreviewUrl] = useState<string | null>(null);
   const [newAPreviewUrl, setNewAPreviewUrl] = useState<string | null>(null);
 
-  const questionRef = useRef<HTMLInputElement>(null);
+  const questionRef = useRef<HTMLTextAreaElement>(null);
 
   // Create/revoke object URLs for local file previews
   useEffect(() => {
@@ -280,10 +281,9 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
           {/* Question Section */}
           <div className="form-field">
             <div className="edit-card-section-label">Question</div>
-            <input
+            <AutoGrowTextarea
               ref={questionRef}
               className="form-input"
-              type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               disabled={saving}
@@ -294,9 +294,8 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
           {/* Answer Section */}
           <div className="form-field">
             <div className="edit-card-section-label">Answer</div>
-            <input
+            <AutoGrowTextarea
               className="form-input"
-              type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               disabled={saving}

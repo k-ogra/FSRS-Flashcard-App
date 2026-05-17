@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Hero from "./Hero";
 import Features from "../header/Features";
+import DemoSection from "./DemoSection";
 import Footer from "../footer/Footer";
 import "./Homepage.css";
 
@@ -22,6 +23,7 @@ function Homepage() {
     <>
       <Hero />
       <Features />
+      <DemoSection />
       <Footer />
     </>
   );

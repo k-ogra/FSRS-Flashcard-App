@@ -29,7 +29,16 @@ function Hero() {
               Start for Free
             </Link>
           )}
-          <a href="#how-it-works" className="btn btn-ghost">
+          <a
+            href="#demo"
+            className="btn btn-ghost"
+            onClick={(e) => {
+              e.preventDefault();
+              document
+                .getElementById("demo")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
             See how it works →
           </a>
         </div>

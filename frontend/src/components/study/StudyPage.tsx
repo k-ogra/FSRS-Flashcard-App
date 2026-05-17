@@ -13,6 +13,7 @@ import {
 } from "../../api";
 import type { FlashcardStudy, Grade } from "../../api";
 import MediaRenderer from "../shared/MediaRenderer";
+import AutoGrowTextarea from "../shared/AutoGrowTextarea";
 import EditCardModal from "../editcards/EditCardModal";
 import { useAuth } from "../context/useAuth";
 import type { Deck } from "../../api";
@@ -94,7 +95,7 @@ export default function StudyPage() {
   const [editingCard, setEditingCard] = useState<Deck["flashcards"][0] | null>(null);
   const [questionFilePreviewUrl, setQuestionFilePreviewUrl] = useState<string | null>(null);
   const [answerFilePreviewUrl, setAnswerFilePreviewUrl] = useState<string | null>(null);
-  const questionRef = useRef<HTMLInputElement>(null);
+  const questionRef = useRef<HTMLTextAreaElement>(null);
   const questionFileInputRef = useRef<HTMLInputElement>(null);
   const answerFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -359,10 +360,9 @@ export default function StudyPage() {
           <form className="study-add-form" onSubmit={handleAddCard}>
             <h3>Add a Flashcard</h3>
             <div className="study-add-fields">
-              <input
+              <AutoGrowTextarea
                 ref={questionRef}
                 className="study-add-input"
-                type="text"
                 placeholder="Question"
                 value={newQuestion}
                 onChange={(e) => setNewQuestion(e.target.value)}
@@ -403,9 +403,8 @@ export default function StudyPage() {
                   <MediaRenderer url={questionFilePreviewUrl} fileName={questionFile.name} />
                 </div>
               )}
-              <input
+              <AutoGrowTextarea
                 className="study-add-input"
-                type="text"
                 placeholder="Answer"
                 value={newAnswer}
                 onChange={(e) => setNewAnswer(e.target.value)}
