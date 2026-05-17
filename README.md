@@ -38,7 +38,7 @@ Register and log in with a username and password. Authentication is session-base
 
 ## Demo
 
-<video src="frontend/public/demoVideo.mp4" width="720" controls></video>
+https://github.com/user-attachments/assets/2fc8322e-23d0-43a2-82f8-9b09c6765a68
 
 ## Tech Stack
 
